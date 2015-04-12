@@ -191,7 +191,7 @@ See tq.el."
           (ignore-errors (funcall fn closure answer-ls)))))))
 
 (defun emms-player-simple-mpv--tq-event-action ()
-  "For event response from mpv."
+  "Action for event response from mpv."
   (let ((buf (get-buffer emms-player-simple-mpv--tq-event-buffer-name))
         ans-ls)
     (when (buffer-live-p buf)
@@ -228,7 +228,7 @@ See tq.el."
       (tq-queue-pop tq))))
 
 (defun emms-player-simple-mpv--tq-make-command (com &rest params)
-  "Build JSON command from COM and PARAMS.."
+  "Build JSON command from COM and PARAMS."
   (concat (json-encode `(("command" . (,com ,@params)))) "\n"))
 
 (defun emms-player-simple-mpv-tq-enqueue
@@ -236,7 +236,7 @@ See tq.el."
   "Wrapper function of tq-enqueue."
   (when (emms-player-simple-mpv-playing-p)
     (tq-enqueue emms-player-simple-mpv--tq
-                (apply 'emms-player-simple-mpv--tq-make-command com-ls)
+                (apply #'emms-player-simple-mpv--tq-make-command com-ls)
                 "" closure fn delay-question)))
 
 (defun emms-player-simple-mpv-tq-success-p (ans)
@@ -456,7 +456,7 @@ ANS-LS includes data value."
     (message "mpv volume : error")))
 
 (defun emms-player-simple-mpv-volume-change (v)
-  "Change volume to V."
+  "Change volume by V."
   (emms-player-simple-mpv-tq-clear)
   (emms-player-simple-mpv-tq-enqueue
    (list "get_property" "volume")
@@ -466,13 +466,13 @@ ANS-LS includes data value."
   "Set default volume change function to `emms-volume-change-function'."
   (let ((default-volume-function
           (get 'emms-player-simple-mpv-volume-change
-               'default-volume-change-function)))
+               :default-volume-change-function)))
     (if  (null default-volume-function)
         ;; If nil, set defalt value
         (setq emms-volume-change-function emms-player-simple-mpv-default-volume-function)
       (setq emms-volume-change-function default-volume-function)
       (put 'emms-player-simple-mpv-volume-change
-           'default-volume-change-function nil)))
+           :default-volume-change-function nil)))
   (remove-hook 'emms-player-stopped-hook
                'emms-player-simple-mpv--set-default-volume-change-function)
   (remove-hook 'emms-player-finished-hook
@@ -481,7 +481,7 @@ ANS-LS includes data value."
 (defun emms-player-simple-mpv--set-volume-change-function ()
   "Set `emms-player-simple-mpv-volume-change' to `emms-volume-change-function'."
   (put 'emms-player-simple-mpv-volume-change
-       'default-volume-change-function  emms-volume-change-function)
+       :default-volume-change-function  emms-volume-change-function)
   (setq emms-volume-change-function 'emms-player-simple-mpv-volume-change)
   (add-hook 'emms-player-stopped-hook
             'emms-player-simple-mpv--set-default-volume-change-function)
