@@ -50,9 +50,9 @@
        (message "mpv seek to (%%) : error")))))
 
 ;;;###autoload
-(defun emms-player-simple-mpv-volume-set (v)
+(defun emms-player-simple-mpv-volume-to (v)
   "Set volume to V."
-  (interactive "nmpv volume set : ")
+  (interactive "nmpv volume to : ")
   (emms-player-simple-mpv-tq-enqueue
    (list "set_property" "volume" v)
    v
@@ -223,9 +223,9 @@
    (- emms-player-simple-mpv-speed-change-amount)))
 
 ;;;###autoload
-(defun emms-player-simple-mpv-speed-set (v)
+(defun emms-player-simple-mpv-speed-to (v)
   "Set speed to V."
-  (interactive "nmpv speed set : ")
+  (interactive "nmpv speed to : ")
   (emms-player-simple-mpv-tq-enqueue
    (list "set_property" "speed" v)
    v
