@@ -3,7 +3,7 @@
 ;; Copyright (C) 2015 momomo5717
 
 ;; Keywords: emms, mpv
-;; Version: 0.1.0
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs 24) (cl-lib "0.5") (emms "4.0"))
 ;; URL: https://github.com/momomo5717/emms-player-simple-mpv
 
@@ -54,7 +54,7 @@
 (require 'json)
 (require 'tq)
 
-(defvar emms-player-simple-mpv-version "0.1.0")
+(defvar emms-player-simple-mpv-version "0.1.1")
 
 (defvar emms-player-simple-mpv-use-volume-change-function-p t
   "If non-nil, `emms-player-simple-mpv-volume-change' is used as `emms-volume-change-function'.")
