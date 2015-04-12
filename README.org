@@ -13,7 +13,7 @@
    + EMMS 4.0
    + mpv v0.7 or later ( [[https://github.com/mpv-player/mpv]] )
 
-   Tested with GNU Emacs 24.4 (emacs-mac-app @5.4_0), EMMS 4.0, mpv @0.8.2_1.
+   Tested with GNU Emacs 24.4 (emacs-mac-app @5.4_0), EMMS 4.0, mpv @0.8.3_0.
 
 ** Setup
 
@@ -32,7 +32,7 @@
      (define-emms-simple-player-mpv mpv '(file url streamlist playlist)
          (concat "\\`\\(http[s]?\\|mms\\)://\\|"
                  (apply #'emms-player-simple-regexp
-                        "pls" "m3u"
+                        "pls"
                         emms-player-base-format-list))
          "mpv" "--no-terminal" "--force-window=no" "--audio-display=no")
 
@@ -44,21 +44,21 @@
      (add-to-list 'emms-player-list 'emms-player-mpv)
    #+END_SRC
 
-**** Variable: =emms-player-simple-mpv-use-volume-change-function-p=
+***** Variable: =emms-player-simple-mpv-use-volume-change-function-p=
 
-     Default value is =t=.
-     If the variable is non-nil, 
-     =emms-player-simple-mpv-volume-change= is used as =emms-volume-change-function= while running mpv.
-     
-**** Function: =emms-player-simple-mpv-add-to-converters player regexp types fn &optional appendp=
+      Default value is =t=.
+      If the variable is non-nil,
+      =emms-player-simple-mpv-volume-change= is used as =emms-volume-change-function= while running mpv.
 
-     =emms-player-simple-mpv-add-to-converters= adds =(list regexp types fn)= to player's =mpv-track-name-converters=.
-     =fn= converts track name to input form when mpv needs specific format such as ffplay format for playing some protocols.
+***** Function: =emms-player-simple-mpv-add-to-converters player regexp types fn &optional appendp=
+
+      =emms-player-simple-mpv-add-to-converters= adds =(list regexp types fn)= to player's =mpv-track-name-converters=.
+      =fn= converts track name to input form when mpv needs specific format such as ffplay format for playing some protocols.
 
 
    Some examples of defining specific emms players : [[https://github.com/momomo5717/emms-player-mpv-jp-radio-settings]]
-   
+
 ** References
 
-     + emms-player-mpv ( [[https://github.com/dochang/emms-player-mpv]] ) 
+     + emms-player-mpv ( [[https://github.com/dochang/emms-player-mpv]] )
      + mpv.el ( [[https://github.com/kljohann/mpv.el]] )
