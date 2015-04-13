@@ -55,7 +55,7 @@
       =fn= converts track name to input form when mpv needs specific format such as ffplay format for playing some protocols.
 
 
-   Some examples of defining specific emms players : [[https://github.com/momomo5717/emms-player-mpv-jp-radio-settings]]
+   Some examples of defining specific emms players : [[https://github.com/momomo5717/emms-player-mpv-jp-radios]]
 
 ** References
 
