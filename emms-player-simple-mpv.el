@@ -40,8 +40,7 @@
 ;;
 ;; (emms-player-simple-mpv-add-to-converters
 ;;  'emms-player-mpv "." '(playlist)
-;;  (lambda (track-name)
-;;    (shell-quote-argument (format "--playlist=%s" track-name))))
+;;  (lambda (track-name) (format "--playlist=%s" track-name)))
 ;;
 ;; (add-to-list 'emms-player-list 'emms-player-mpv)
 ;;
@@ -313,8 +312,9 @@ FN takes track-name as arg."
                    when (and (string-match-p regexp track-name)
                              (or (eq types t) (memq track-type types)))
                    return fn)))
-    (if converter (funcall converter track-name)
-      (shell-quote-argument track-name))))
+    (shell-quote-argument
+     (if converter (funcall converter track-name)
+       track-name))))
 
 (defun emms-player-simple-mpv-start (track player cmdname params)
   "Emulate `emms-player-simple-start' but the first arg."

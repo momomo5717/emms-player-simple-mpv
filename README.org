@@ -38,8 +38,7 @@
 
      (emms-player-simple-mpv-add-to-converters
       'emms-player-mpv "." '(playlist)
-      (lambda (track-name)
-        (shell-quote-argument (format "--playlist=%s" track-name))))
+      (lambda (track-name) (format "--playlist=%s" track-name)))
 
      (add-to-list 'emms-player-list 'emms-player-mpv)
    #+END_SRC
