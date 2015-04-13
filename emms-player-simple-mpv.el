@@ -228,7 +228,7 @@ See tq.el."
 
 (defun emms-player-simple-mpv-tq-enqueue
     (com-ls closure fn &optional delay-question)
-  "Wrapper function of tq-enqueue."
+  "Wrapper function of `tq-enqueue'."
   (when (emms-player-simple-mpv-playing-p)
     (tq-enqueue emms-player-simple-mpv--tq
                 (apply #'emms-player-simple-mpv--tq-make-command com-ls)
@@ -276,7 +276,7 @@ FORMAT includes a format specification %s."
           (message format err-msg)
         (message "mpv : nothing error message")))))
 
-;; FUnctions to start mpv
+;; Functions to start mpv
 
 (defun emms-player-simple-mpv-add-to-converters (player regexp types fn &optional appendp)
   "Add a converter to PLAYER's mpv-track-name-converters like `add-to-list'.
@@ -464,7 +464,6 @@ ANS-LS includes data value."
           (get 'emms-player-simple-mpv-volume-change
                :default-volume-change-function)))
     (if  (null default-volume-function)
-        ;; If nil, set defalt value
         (setq emms-volume-change-function emms-player-simple-mpv-default-volume-function)
       (setq emms-volume-change-function default-volume-function)
       (put 'emms-player-simple-mpv-volume-change
