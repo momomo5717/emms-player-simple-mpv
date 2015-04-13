@@ -63,32 +63,28 @@
 
 (defmacro define-emms-simple-player-mpv (name types regex command &rest args)
   "Extension of `define-emms-simple-player' for mpv JSON IPC."
-  (let ((group (intern (concat "emms-player-" (symbol-name name))))
-        (command-name (intern (concat "emms-player-"
-                                      (symbol-name name)
-                                      "-command-name")))
-        (parameters (intern (concat "emms-player-"
-                                    (symbol-name name)
-                                    "-parameters")))
-        (player-name (intern (concat "emms-player-" (symbol-name name))))
-        (start (intern (concat "emms-player-" (symbol-name name) "-start")))
-        (stop (intern (concat "emms-player-" (symbol-name name) "-stop")))
-        (playablep (intern (concat "emms-player-" (symbol-name name) "-playable-p"))))
+  (let ((group (intern (format "emms-player-%s"  name)))
+        (command-name (intern (format "emms-player-%s-command-name" name)))
+        (parameters (intern (format "emms-player-%s-parameters" name)))
+        (player-name (intern (format "emms-player-%s" name)))
+        (start (intern (format "emms-player-%s-start" name)))
+        (stop (intern (format"emms-player-%s-stop" name)))
+        (playablep (intern (format "emms-player-%s-playable-p" name))))
   `(progn
      (defgroup ,group nil
-       ,(concat "EMMS player for " command ".")
+       ,(format "EMMS player for %s." command)
        :group 'emms-player
-       :prefix ,(concat "emms-player-" (symbol-name name) "-"))
+       :prefix ,(format "emms-player-%s-" name))
      (defcustom ,command-name ,command
-       ,(concat "*The command name of " command ".")
+       ,(format "*The command name of %s." command)
        :type  'string
        :group ',group)
      (defcustom ,parameters ',args
-       ,(concat "*The arguments to `" (symbol-name command-name) "'.")
+       ,(format "*The arguments to `%s'." command-name)
        :type  '(repeat string)
        :group ',group)
      (defcustom ,player-name (emms-player ',start ',stop ',playablep)
-       ,(concat "*A player for EMMS.")
+       "*A player for EMMS."
        :type '(cons symbol alist)
        :group ',group)
      (emms-player-set ,player-name 'regex ,regex)
