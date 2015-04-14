@@ -3,8 +3,8 @@
 ;; Copyright (C) 2015 momomo5717
 
 ;; Keywords: emms, mpv
-;; Version: 0.1.1
-;; Package-Requires: ((emacs 24) (cl-lib "0.5") (emms "4.0"))
+;; Version: 0.1.2
+;; Package-Requires: ((emacs "24") (cl-lib "0.5") (emms "4.0"))
 ;; URL: https://github.com/momomo5717/emms-player-simple-mpv
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -40,8 +40,7 @@
 ;;
 ;; (emms-player-simple-mpv-add-to-converters
 ;;  'emms-player-mpv "." '(playlist)
-;;  (lambda (track-name)
-;;    (shell-quote-argument (format "--playlist=%s" track-name))))
+;;  (lambda (track-name) (format "--playlist=%s" track-name)))
 ;;
 ;; (add-to-list 'emms-player-list 'emms-player-mpv)
 ;;
@@ -53,53 +52,62 @@
 (require 'cl-lib)
 (require 'json)
 (require 'tq)
+(require 'later-do)
 
-(defvar emms-player-simple-mpv-version "0.1.1")
+(defconst emms-player-simple-mpv-version "0.1.2")
 
-(defvar emms-player-simple-mpv-use-volume-change-function-p t
-  "If non-nil, `emms-player-simple-mpv-volume-change' is used as `emms-volume-change-function'.")
+(defgroup emms-simple-player-mpv nil
+  "An extension of emms-simple-player.el."
+  :group 'emms-player
+  :prefix "emms-simple-player-mpv-")
+
+(defcustom emms-player-simple-mpv-use-volume-change-function-p t
+  "If non-nil, `emms-player-simple-mpv-volume-change' is used as `emms-volume-change-function'."
+  :group 'emms-simple-player-mpv
+  :type 'boolean)
+
+(defcustom emms-player-simple-mpv-use-start-tq-error-message-p t
+  "If non-nil, display error message when failed to start tq process."
+  :group 'emms-simple-player-mpv
+  :type 'boolean)
 
 (defvar emms-player-simple-mpv-default-volume-function emms-volume-change-function
   "Set emms-volume-change-function for buckup.")
 
 (defmacro define-emms-simple-player-mpv (name types regex command &rest args)
   "Extension of `define-emms-simple-player' for mpv JSON IPC."
-  (let ((group (intern (concat "emms-player-" (symbol-name name))))
-        (command-name (intern (concat "emms-player-"
-                                      (symbol-name name)
-                                      "-command-name")))
-        (parameters (intern (concat "emms-player-"
-                                    (symbol-name name)
-                                    "-parameters")))
-        (player-name (intern (concat "emms-player-" (symbol-name name))))
-        (start (intern (concat "emms-player-" (symbol-name name) "-start")))
-        (stop (intern (concat "emms-player-" (symbol-name name) "-stop")))
-        (playablep (intern (concat "emms-player-" (symbol-name name) "-playable-p"))))
+  (let ((group         (intern (format "emms-player-%s"              name)))
+        (command-name  (intern (format "emms-player-%s-command-name" name)))
+        (parameters    (intern (format "emms-player-%s-parameters"   name)))
+        (player-name   (intern (format "emms-player-%s"              name)))
+        (start         (intern (format "emms-player-%s-start"        name)))
+        (stop          (intern (format "emms-player-%s-stop"         name)))
+        (playablep     (intern (format "emms-player-%s-playable-p"   name))))
   `(progn
      (defgroup ,group nil
-       ,(concat "EMMS player for " command ".")
+       ,(format "EMMS player for %s." command)
        :group 'emms-player
-       :prefix ,(concat "emms-player-" (symbol-name name) "-"))
+       :prefix ,(format "emms-player-%s-" name))
      (defcustom ,command-name ,command
-       ,(concat "*The command name of " command ".")
+       ,(format "*The command name of %s." command)
        :type  'string
        :group ',group)
      (defcustom ,parameters ',args
-       ,(concat "*The arguments to `" (symbol-name command-name) "'.")
+       ,(format "*The arguments to `%s'." command-name)
        :type  '(repeat string)
        :group ',group)
      (defcustom ,player-name (emms-player ',start ',stop ',playablep)
-       ,(concat "*A player for EMMS.")
+       "*A player for EMMS."
        :type '(cons symbol alist)
        :group ',group)
-     (emms-player-set ,player-name 'regex ,regex)
-     (emms-player-set ,player-name 'pause 'emms-player-simple-mpv-pause)
-     (emms-player-set ,player-name 'resume 'emms-player-simple-mpv-resume)
-     (emms-player-set ,player-name 'seek 'emms-player-simple-mpv-seek)
+     (emms-player-set ,player-name 'regex   ,regex)
+     (emms-player-set ,player-name 'pause   'emms-player-simple-mpv-pause)
+     (emms-player-set ,player-name 'resume  'emms-player-simple-mpv-resume)
+     (emms-player-set ,player-name 'seek    'emms-player-simple-mpv-seek)
      (emms-player-set ,player-name 'seek-to 'emms-player-simple-mpv-seek-to)
      (emms-player-set ,player-name 'get-media-title
                       (lambda (track) (file-name-nondirectory (emms-track-name track))))
-     (emms-player-set ,player-name 'mpv-track-name-converters ())
+     (emms-player-set ,player-name 'mpv-track-name-converters '())
      (defun ,start (track)
        "Start the player process."
        (emms-player-simple-mpv-start track
@@ -206,10 +214,13 @@ See tq.el."
               for event = (cdr (assq 'event ans))
               when event do
               (cond
-               ((equal event "pause")
+               ((or (equal event "pause")
+                    (equal event "seek")
+                    (equal event "tracks-changed"))
                 (setq emms-player-paused-p t)
                 (run-hooks 'emms-player-paused-hook))
-               ((equal event "unpause")
+               ((or (equal event "unpause")
+                    (equal event "playback-restart"))
                 (setq emms-player-paused-p nil)
                 (run-hooks 'emms-player-paused-hook))
                (t nil)))
@@ -233,7 +244,7 @@ See tq.el."
 
 (defun emms-player-simple-mpv-tq-enqueue
     (com-ls closure fn &optional delay-question)
-  "Wrapper function of tq-enqueue."
+  "Wrapper function of `tq-enqueue'."
   (when (emms-player-simple-mpv-playing-p)
     (tq-enqueue emms-player-simple-mpv--tq
                 (apply #'emms-player-simple-mpv--tq-make-command com-ls)
@@ -281,7 +292,7 @@ FORMAT includes a format specification %s."
           (message format err-msg)
         (message "mpv : nothing error message")))))
 
-;; FUnctions to start mpv
+;; Functions to start mpv
 
 (defun emms-player-simple-mpv-add-to-converters (player regexp types fn &optional appendp)
   "Add a converter to PLAYER's mpv-track-name-converters like `add-to-list'.
@@ -313,8 +324,13 @@ FN takes track-name as arg."
                    when (and (string-match-p regexp track-name)
                              (or (eq types t) (memq track-type types)))
                    return fn)))
-    (if converter (funcall converter track-name)
-      (shell-quote-argument track-name))))
+    (if converter (funcall converter track-name) track-name)))
+
+(defun emms-player-simple-mpv--start-tq-error-message (params input-form)
+  "Error message when faile to start tq-process."
+  (message "Failed to start mpv--tq. Check parameters or input form.
+    %s\n    %s"
+           (mapconcat #'identity  params " ") input-form))
 
 (defun emms-player-simple-mpv-start (track player cmdname params)
   "Emulate `emms-player-simple-start' but the first arg."
@@ -327,28 +343,33 @@ FN takes track-name as arg."
          (get-media-title (emms-player-get player 'get-media-title))
          (media-title
           (if get-media-title
-              (shell-quote-argument
-               (format "--media-title=%s"
-                       (funcall get-media-title track)))
+              (format "--media-title=%s"
+                      (funcall get-media-title track))
             ""))
          (process
-          (funcall #'start-process-shell-command
-                   emms-player-simple-process-name
-                   nil
-                   (mapconcat #'identity
-                              `(,cmdname ,media-title ,input-socket
-                                         ,@params ,input-form)
-                              " "))))
+          (apply  #'start-process
+                  emms-player-simple-process-name
+                  nil
+                  cmdname
+                  `(,media-title ,input-socket ,@params ,input-form))))
     (set-process-sentinel process 'emms-player-simple-sentinel)
     (emms-player-started player)
+    (setq emms-player-paused-p t)
+    (run-hooks 'emms-player-paused-hook)
     (while (and (eq (process-status process) 'run)
                 (not (file-exists-p emms-player-simple-mpv--socket)))
       (sit-for 0.05))
-    (setq emms-player-simple-mpv--tq (emms-player-simple-mpv--tq-create))
-    (set-process-filter (tq-process emms-player-simple-mpv--tq)
-                        'emms-player-simple-mpv--socket-filter)
-    (when emms-player-simple-mpv-use-volume-change-function-p
-      (emms-player-simple-mpv--set-volume-change-function))))
+    (condition-case err
+        (setq emms-player-simple-mpv--tq (emms-player-simple-mpv--tq-create))
+      (error (message "%s" (error-message-string err))
+             (when emms-player-simple-mpv-use-start-tq-error-message-p
+               (later-do 'emms-player-simple-mpv--start-tq-error-message
+                         params input-form))))
+    (when (tq-process emms-player-simple-mpv--tq)
+      (set-process-filter (tq-process emms-player-simple-mpv--tq)
+                          'emms-player-simple-mpv--socket-filter)
+      (when emms-player-simple-mpv-use-volume-change-function-p
+        (emms-player-simple-mpv--set-volume-change-function)))))
 
 ;; Functions to control mpv
 
@@ -468,7 +489,6 @@ ANS-LS includes data value."
           (get 'emms-player-simple-mpv-volume-change
                :default-volume-change-function)))
     (if  (null default-volume-function)
-        ;; If nil, set defalt value
         (setq emms-volume-change-function emms-player-simple-mpv-default-volume-function)
       (setq emms-volume-change-function default-volume-function)
       (put 'emms-player-simple-mpv-volume-change
