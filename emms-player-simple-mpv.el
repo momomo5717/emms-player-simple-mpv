@@ -52,6 +52,7 @@
 (require 'cl-lib)
 (require 'json)
 (require 'tq)
+(require 'later-do)
 
 (defvar emms-player-simple-mpv-version "0.1.1")
 
@@ -315,6 +316,12 @@ FN takes track-name as arg."
      (if converter (funcall converter track-name)
        track-name))))
 
+(defun emms-player-simple-mpv--start-tq-error-message (params input-form)
+  "Error message when faile to start tq-process."
+  (message "Failed to start mpv--tq. Check parameters or input form.
+    %s\n    %s"
+           (mapconcat #'identity  params " ") input-form))
+
 (defun emms-player-simple-mpv-start (track player cmdname params)
   "Emulate `emms-player-simple-start' but the first arg."
   (emms-player-simple-mpv--tq-close)
@@ -340,14 +347,21 @@ FN takes track-name as arg."
                               " "))))
     (set-process-sentinel process 'emms-player-simple-sentinel)
     (emms-player-started player)
+    (setq emms-player-paused-p t)
+    (run-hooks 'emms-player-paused-hook)
     (while (and (eq (process-status process) 'run)
                 (not (file-exists-p emms-player-simple-mpv--socket)))
       (sit-for 0.05))
-    (setq emms-player-simple-mpv--tq (emms-player-simple-mpv--tq-create))
-    (set-process-filter (tq-process emms-player-simple-mpv--tq)
-                        'emms-player-simple-mpv--socket-filter)
-    (when emms-player-simple-mpv-use-volume-change-function-p
-      (emms-player-simple-mpv--set-volume-change-function))))
+    (condition-case err
+        (setq emms-player-simple-mpv--tq (emms-player-simple-mpv--tq-create))
+      (error (message "%s" (error-message-string err))
+             (later-do 'emms-player-simple-mpv--start-tq-error-message
+                        params input-form)))
+    (when (tq-process emms-player-simple-mpv--tq)
+     (set-process-filter (tq-process emms-player-simple-mpv--tq)
+                         'emms-player-simple-mpv--socket-filter)
+     (when emms-player-simple-mpv-use-volume-change-function-p
+       (emms-player-simple-mpv--set-volume-change-function)))))
 
 ;; Functions to control mpv
 
