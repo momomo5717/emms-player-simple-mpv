@@ -201,10 +201,13 @@ See tq.el."
               for event = (cdr (assq 'event ans))
               when event do
               (cond
-               ((equal event "pause")
+               ((or (equal event "pause")
+                    (equal event "seek")
+                    (equal event "tracks-changed"))
                 (setq emms-player-paused-p t)
                 (run-hooks 'emms-player-paused-hook))
-               ((equal event "unpause")
+               ((or (equal event "unpause")
+                    (equal event "playback-restart"))
                 (setq emms-player-paused-p nil)
                 (run-hooks 'emms-player-paused-hook))
                (t nil)))
