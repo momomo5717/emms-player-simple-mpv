@@ -312,9 +312,7 @@ FN takes track-name as arg."
                    when (and (string-match-p regexp track-name)
                              (or (eq types t) (memq track-type types)))
                    return fn)))
-    (shell-quote-argument
-     (if converter (funcall converter track-name)
-       track-name))))
+    (if converter (funcall converter track-name) track-name)))
 
 (defun emms-player-simple-mpv--start-tq-error-message (params input-form)
   "Error message when faile to start tq-process."
@@ -333,18 +331,15 @@ FN takes track-name as arg."
          (get-media-title (emms-player-get player 'get-media-title))
          (media-title
           (if get-media-title
-              (shell-quote-argument
-               (format "--media-title=%s"
-                       (funcall get-media-title track)))
+              (format "--media-title=%s"
+                      (funcall get-media-title track))
             ""))
          (process
-          (funcall #'start-process-shell-command
-                   emms-player-simple-process-name
-                   nil
-                   (mapconcat #'identity
-                              `(,cmdname ,media-title ,input-socket
-                                         ,@params ,input-form)
-                              " "))))
+          (apply  #'start-process
+                  emms-player-simple-process-name
+                  nil
+                  cmdname
+                  `(,media-title ,input-socket ,@params ,input-form))))
     (set-process-sentinel process 'emms-player-simple-sentinel)
     (emms-player-started player)
     (setq emms-player-paused-p t)
