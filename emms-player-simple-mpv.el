@@ -54,23 +54,35 @@
 (require 'tq)
 (require 'later-do)
 
-(defvar emms-player-simple-mpv-version "0.1.1")
+(defconst emms-player-simple-mpv-version "0.1.1")
 
-(defvar emms-player-simple-mpv-use-volume-change-function-p t
-  "If non-nil, `emms-player-simple-mpv-volume-change' is used as `emms-volume-change-function'.")
+(defgroup emms-simple-player-mpv nil
+  "An extension of emms-simple-player.el."
+  :group 'emms-player
+  :prefix "emms-simple-player-mpv-")
+
+(defcustom emms-player-simple-mpv-use-volume-change-function-p t
+  "If non-nil, `emms-player-simple-mpv-volume-change' is used as `emms-volume-change-function'."
+  :group 'emms-simple-player-mpv
+  :type 'boolean)
+
+(defcustom emms-player-simple-mpv-use-start-tq-error-message-p t
+  "If non-nil, display error message when failed to start tq process."
+  :group 'emms-simple-player-mpv
+  :type 'boolean)
 
 (defvar emms-player-simple-mpv-default-volume-function emms-volume-change-function
   "Set emms-volume-change-function for buckup.")
 
 (defmacro define-emms-simple-player-mpv (name types regex command &rest args)
   "Extension of `define-emms-simple-player' for mpv JSON IPC."
-  (let ((group (intern (format "emms-player-%s"  name)))
-        (command-name (intern (format "emms-player-%s-command-name" name)))
-        (parameters (intern (format "emms-player-%s-parameters" name)))
-        (player-name (intern (format "emms-player-%s" name)))
-        (start (intern (format "emms-player-%s-start" name)))
-        (stop (intern (format"emms-player-%s-stop" name)))
-        (playablep (intern (format "emms-player-%s-playable-p" name))))
+  (let ((group         (intern (format "emms-player-%s"              name)))
+        (command-name  (intern (format "emms-player-%s-command-name" name)))
+        (parameters    (intern (format "emms-player-%s-parameters"   name)))
+        (player-name   (intern (format "emms-player-%s"              name)))
+        (start         (intern (format "emms-player-%s-start"        name)))
+        (stop          (intern (format "emms-player-%s-stop"         name)))
+        (playablep     (intern (format "emms-player-%s-playable-p"   name))))
   `(progn
      (defgroup ,group nil
        ,(format "EMMS player for %s." command)
@@ -88,14 +100,14 @@
        "*A player for EMMS."
        :type '(cons symbol alist)
        :group ',group)
-     (emms-player-set ,player-name 'regex ,regex)
-     (emms-player-set ,player-name 'pause 'emms-player-simple-mpv-pause)
-     (emms-player-set ,player-name 'resume 'emms-player-simple-mpv-resume)
-     (emms-player-set ,player-name 'seek 'emms-player-simple-mpv-seek)
+     (emms-player-set ,player-name 'regex   ,regex)
+     (emms-player-set ,player-name 'pause   'emms-player-simple-mpv-pause)
+     (emms-player-set ,player-name 'resume  'emms-player-simple-mpv-resume)
+     (emms-player-set ,player-name 'seek    'emms-player-simple-mpv-seek)
      (emms-player-set ,player-name 'seek-to 'emms-player-simple-mpv-seek-to)
      (emms-player-set ,player-name 'get-media-title
                       (lambda (track) (file-name-nondirectory (emms-track-name track))))
-     (emms-player-set ,player-name 'mpv-track-name-converters ())
+     (emms-player-set ,player-name 'mpv-track-name-converters '())
      (defun ,start (track)
        "Start the player process."
        (emms-player-simple-mpv-start track
@@ -312,9 +324,7 @@ FN takes track-name as arg."
                    when (and (string-match-p regexp track-name)
                              (or (eq types t) (memq track-type types)))
                    return fn)))
-    (shell-quote-argument
-     (if converter (funcall converter track-name)
-       track-name))))
+    (if converter (funcall converter track-name) track-name)))
 
 (defun emms-player-simple-mpv--start-tq-error-message (params input-form)
   "Error message when faile to start tq-process."
@@ -333,18 +343,15 @@ FN takes track-name as arg."
          (get-media-title (emms-player-get player 'get-media-title))
          (media-title
           (if get-media-title
-              (shell-quote-argument
-               (format "--media-title=%s"
-                       (funcall get-media-title track)))
+              (format "--media-title=%s"
+                      (funcall get-media-title track))
             ""))
          (process
-          (funcall #'start-process-shell-command
-                   emms-player-simple-process-name
-                   nil
-                   (mapconcat #'identity
-                              `(,cmdname ,media-title ,input-socket
-                                         ,@params ,input-form)
-                              " "))))
+          (apply  #'start-process
+                  emms-player-simple-process-name
+                  nil
+                  cmdname
+                  `(,media-title ,input-socket ,@params ,input-form))))
     (set-process-sentinel process 'emms-player-simple-sentinel)
     (emms-player-started player)
     (setq emms-player-paused-p t)
@@ -355,13 +362,14 @@ FN takes track-name as arg."
     (condition-case err
         (setq emms-player-simple-mpv--tq (emms-player-simple-mpv--tq-create))
       (error (message "%s" (error-message-string err))
-             (later-do 'emms-player-simple-mpv--start-tq-error-message
-                        params input-form)))
+             (when emms-player-simple-mpv-use-start-tq-error-message-p
+               (later-do 'emms-player-simple-mpv--start-tq-error-message
+                         params input-form))))
     (when (tq-process emms-player-simple-mpv--tq)
-     (set-process-filter (tq-process emms-player-simple-mpv--tq)
-                         'emms-player-simple-mpv--socket-filter)
-     (when emms-player-simple-mpv-use-volume-change-function-p
-       (emms-player-simple-mpv--set-volume-change-function)))))
+      (set-process-filter (tq-process emms-player-simple-mpv--tq)
+                          'emms-player-simple-mpv--socket-filter)
+      (when emms-player-simple-mpv-use-volume-change-function-p
+        (emms-player-simple-mpv--set-volume-change-function)))))
 
 ;; Functions to control mpv
 

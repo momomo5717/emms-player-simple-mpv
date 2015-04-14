@@ -43,17 +43,21 @@
      (add-to-list 'emms-player-list 'emms-player-mpv)
    #+END_SRC
 
-***** Variable: =emms-player-simple-mpv-use-volume-change-function-p=
+***** Macro: define-emms-simple-player-mpv name types regex command &rest args
 
-      Default value is =t=.
-      If the variable is non-nil,
-      =emms-player-simple-mpv-volume-change= is used as =emms-volume-change-function= while running mpv.
+      This macro emulate =define-emms-simple-player=. See EMMS Manual [[https://www.gnu.org/software/emms/manual/Simple-Players.html#Simple-Players][11 Simple-Players]].
 
 ***** Function: =emms-player-simple-mpv-add-to-converters player regexp types fn &optional appendp=
 
       =emms-player-simple-mpv-add-to-converters= adds =(list regexp types fn)= to player's =mpv-track-name-converters=.
-      =fn= converts track name to input form when mpv needs specific format such as ffplay format for playing some protocols.
+      =fn= converts track name to input form
+      when mpv needs specific format such as ffplay format for playing some protocols.
 
+***** User Option: =emms-player-simple-mpv-use-volume-change-function-p=
+
+      Default value is =t=.
+      If the variable is non-nil,
+      =emms-player-simple-mpv-volume-change= is used as =emms-volume-change-function= while a emms mpv player is running.
 
    Some examples of defining specific emms players : [[https://github.com/momomo5717/emms-player-mpv-jp-radios]]
 
