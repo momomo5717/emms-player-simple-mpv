@@ -43,7 +43,7 @@
      (add-to-list 'emms-player-list 'emms-player-mpv)
    #+END_SRC
 
-***** Macro: define-emms-simple-player-mpv name types regex command &rest args
+***** Macro: =define-emms-simple-player-mpv name types regex command &rest args=
 
       This macro emulate =define-emms-simple-player=. See EMMS Manual [[https://www.gnu.org/software/emms/manual/Simple-Players.html#Simple-Players][11 Simple-Players]].
 
