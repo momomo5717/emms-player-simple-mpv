@@ -409,15 +409,15 @@ FN takes track-name as arg."
              (len (cdr (assq 'len als)))
              (data  (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
              (data+ (+ sec data))
-             (next-sec (round (cond
-                               ((< data+ 0) 0)
-                               ((> data+ len) len)
-                               (t data+))))
-             (h (/ next-sec 3600))
-             (m (/ (- next-sec (* 3600 h)) 60))
-             (s (- next-sec (* 60 (+ (* 60 h) m)))))
+             (next-sec (cond
+                        ((< data+ 0) 0)
+                        ((> data+ len) len)
+                        (t data+)))
+             (h (floor next-sec 3600))
+             (m (floor (- next-sec (* 3600 h)) 60))
+             (s (floor (- next-sec (* 60 (+ (* 60 h) m))))))
         (emms-player-simple-mpv-tq-enqueue
-         (list "seek" (number-to-string next-sec) "absolute")
+         (list "seek" next-sec "absolute")
          (format "mpv seek %s : %02d:%02d:%02d" (if (>= sec 0) ">>" "<<") h m s)
          (lambda (form ans-ls)
            (if (emms-player-simple-mpv-tq-success-p ans-ls)
@@ -429,7 +429,7 @@ FN takes track-name as arg."
   "Helper funcion for `emms-player-simple-mpv-seek'.
 For a track which does not have length property."
   (emms-player-simple-mpv-tq-enqueue
-   (list "seek" (number-to-string sec) "relative")
+   (list "seek" sec "relative")
    nil
    (emms-player-simple-mpv-tq-error-message
     (format "mpv seek %s %+d : %%s" (if (>= sec 0) ">>" "<<") sec))))
@@ -455,14 +455,13 @@ For a track which does not have length property."
   "Seek to SEC."
   (interactive "nmpv seek to (sec) : ")
   (emms-player-simple-mpv-tq-enqueue
-   (list "seek" (number-to-string sec) "absolute")
+   (list "seek" sec "absolute")
    sec
    (lambda (sec ans-ls)
      (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (let* ((sec (round sec))
-                (h (/ sec 3600))
-                (m (/ (- sec (* 3600 h)) 60))
-                (s (- sec (* 60 (+ (* 60 h) m)))))
+         (let* ((h (floor sec 3600))
+                (m (floor (- sec (* 3600 h)) 60))
+                (s (floor (- sec (* 60 (+ (* 60 h) m))))))
            (message "mpv seek to : %02d:%02d:%02d" h m s))
        (message "mpv seek to : error")))))
 
