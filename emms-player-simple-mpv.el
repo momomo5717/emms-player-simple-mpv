@@ -189,9 +189,9 @@ See tq.el."
             (ignore-errors (emms-player-simple-mpv--tq-event-action)))
         (goto-char (point-min))
         (let ((answer-ls (cl-loop with ls
-                          for obj = (ignore-errors (json-read))
-                          unless obj return (nreverse ls)
-                          when obj do (push obj ls)))
+                                  for obj = (ignore-errors (json-read))
+                                  when (null obj) return (nreverse ls)
+                                  do (push obj ls)))
               (fn (tq-queue-head-fn tq))
               (closure (tq-queue-head-closure tq)))
           (delete-region (point-min) (point-max))
@@ -208,8 +208,8 @@ See tq.el."
              (goto-char (point-min))
              (cl-loop with ls
                       for obj = (ignore-errors (json-read))
-                      unless obj return (nreverse ls)
-                      when obj do (push obj ls))))
+                      when (null obj) return (nreverse ls)
+                      do (push obj ls))))
      (cl-loop for ans in ans-ls
               for event = (cdr (assq 'event ans))
               when event do
@@ -327,7 +327,7 @@ FN takes track-name as arg."
     (if converter (funcall converter track-name) track-name)))
 
 (defun emms-player-simple-mpv--start-tq-error-message (params input-form)
-  "Error message when faile to start tq-process."
+  "Error message when tq-process fails to start."
   (message "Failed to start mpv--tq. Check parameters or input form.
     %s\n    %s"
            (mapconcat #'identity  params " ") input-form))
