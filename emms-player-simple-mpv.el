@@ -74,6 +74,7 @@
 (defvar emms-player-simple-mpv-default-volume-function emms-volume-change-function
   "Set emms-volume-change-function for buckup.")
 
+;;;###autoload
 (defmacro define-emms-simple-player-mpv (name types regex command &rest args)
   "Extension of `define-emms-simple-player' for mpv JSON IPC."
   (let ((group         (intern (format "emms-player-%s"              name)))
@@ -232,6 +233,7 @@ See tq.el."
     (when process
      (eq (process-status process) 'open))))
 
+;;;###autoload
 (defun emms-player-simple-mpv-tq-clear ()
   "Clear old messages if it remains in tq."
   (let ((tq emms-player-simple-mpv--tq))
@@ -242,6 +244,7 @@ See tq.el."
   "Build JSON command from COM and PARAMS."
   (concat (json-encode `(("command" . (,com ,@params)))) "\n"))
 
+;;;###autoload
 (defun emms-player-simple-mpv-tq-enqueue
     (com-ls closure fn &optional delay-question)
   "Wrapper function of `tq-enqueue'."
@@ -273,6 +276,7 @@ See tq.el."
   "Return a value of the association for KEY in ANS."
   (cdr (emms-player-simple-mpv-tq-assq key ans)))
 
+;;;###autoload
 (defun emms-player-simple-mpv-tq-data-message (format)
   "Return function to display a data message by FORMAT.
 FORMAT includes a format specification %s."
@@ -283,6 +287,7 @@ FORMAT includes a format specification %s."
             (message "mpv : nothing data message")))
       (message format (emms-player-simple-mpv-tq-assq-v 'error ans-ls)))))
 
+;;;###autoload
 (defun emms-player-simple-mpv-tq-error-message (format)
   "Return function to display an error message by FORMAT.
 FORMAT includes a format specification %s."
@@ -294,6 +299,7 @@ FORMAT includes a format specification %s."
 
 ;; Functions to start mpv
 
+;;;###autoload
 (defun emms-player-simple-mpv-add-to-converters (player regexp types fn &optional appendp)
   "Add a converter to PLAYER's mpv-track-name-converters like `add-to-list'.
 Converter is  \(list REGEXP TYPES FN\).
@@ -309,6 +315,7 @@ FN takes track-name as arg."
                            (nconc converters (list converter))
                          (cons converter converters))))))
 
+;;;###autoload
 (defun emms-player-simple-mpv-remove-converter (player regexp)
   "Remove the converter from PLAYER's mpv-track-name-converters which has REGEXP."
   (let ((converters (emms-player-get player 'mpv-track-name-converters)))
@@ -328,10 +335,10 @@ FN takes track-name as arg."
 
 (defun emms-player-simple-mpv--start-tq-error-message (params input-form)
   "Error message when tq-process fails to start."
-  (message "Failed to start mpv--tq. Check parameters or input form.
-    %s\n    %s"
-           (mapconcat #'identity  params " ") input-form))
+  (message "Failed to start mpv--tq. Check parameters or input form.\n%s%s\n%s%s"
+           "    " (mapconcat #'identity  params " ") "    " input-form))
 
+;;;###autoload
 (defun emms-player-simple-mpv-start (track player cmdname params)
   "Emulate `emms-player-simple-start' but the first arg."
   (emms-player-simple-mpv--tq-close)
@@ -375,6 +382,7 @@ FN takes track-name as arg."
 
 ;; pause
 
+;;;###autoload
 (defun emms-player-simple-mpv-pause ()
   "Pause."
   (emms-player-simple-mpv-tq-enqueue
@@ -382,6 +390,7 @@ FN takes track-name as arg."
    nil
    (emms-player-simple-mpv-tq-error-message "mpv pause : %s")))
 
+;;;###autoload
 (defun emms-player-simple-mpv-resume ()
   "Unpause."
   (emms-player-simple-mpv-tq-enqueue
@@ -425,6 +434,7 @@ For a track which does not have length property."
    (emms-player-simple-mpv-tq-error-message
     (format "mpv seek %s %+d : %%s" (if (>= sec 0) ">>" "<<") sec))))
 
+;;;###autoload
 (defun emms-player-simple-mpv-seek (sec)
   "Seek by SEC."
   (emms-player-simple-mpv-tq-clear)
@@ -440,6 +450,7 @@ For a track which does not have length property."
             'emms-player-simple-mpv--seek-1))
        (emms-player-simple-mpv--seek-2 sec)))))
 
+;;;###autoload
 (defun emms-player-simple-mpv-seek-to (sec)
   "Seek to SEC."
   (interactive "nmpv seek to (sec) : ")
@@ -476,6 +487,7 @@ ANS-LS includes data value."
              (message "mpv volume : error")))))
     (message "mpv volume : error")))
 
+;;;###autoload
 (defun emms-player-simple-mpv-volume-change (v)
   "Change volume by V."
   (emms-player-simple-mpv-tq-clear)

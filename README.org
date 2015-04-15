@@ -20,7 +20,7 @@
    #+BEGIN_SRC emacs-lisp
      (add-to-list 'load-path "/path/to/emms-player-simple-mpv")
      (require 'emms-player-simple-mpv)
-     ;; If use other control functions, load it.
+     ;; If you use other control functions, load it.
      (require 'emms-player-simple-mpv-control-functions)
    #+END_SRC
 

@@ -195,6 +195,7 @@
              (message "mpv speed : error")))))
     (message "mpv speed : error")))
 
+;;;###autoload
 (defun emms-player-simple-mpv-speed-change (v)
   "Change speed by V."
   (emms-player-simple-mpv-tq-clear)
