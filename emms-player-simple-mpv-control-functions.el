@@ -123,7 +123,7 @@
        (message "mpv time position (%%) : error")))))
 
 (defmacro emms-player-simple-mpv--playlist-change-1 (str)
-  "Helper macro for `emms-player-simple-mpv--playlist-change'."
+  "Helper macro for emms-player-simple-mpv--playlist-next/prev."
   (let ((n (if (string= str "next") 1  -1)))
     `(progn
        (emms-player-simple-mpv-tq-clear)
@@ -175,63 +175,82 @@
               (message "mpv playlist position : error"))))
        (message "mpv playlist position : error")))))
 
-(defun emms-player-simple-mpv--speed-change-1 (v ans-ls)
-  "Helper function for `emms-player-simple-mpv-speed-change'."
-  (if (emms-player-simple-mpv-tq-success-p ans-ls)
-      (let* ((data (/ (round (* 100 (+ (emms-player-simple-mpv-tq-assq-v 'data ans-ls) v)))
-                      100.0))
-             (speed (cond
-                     ((< data 0.01) 0.01)
-                     ((> data 100) 100)
-                     (t data))))
-        (emms-player-simple-mpv-tq-enqueue
-         (list "set_property" "speed" speed)
-         speed
-         (lambda (speed ans-ls)
-           (if (emms-player-simple-mpv-tq-success-p ans-ls)
-               (message "mpv speed : %s" speed)
-             (message "mpv speed : error")))))
-    (message "mpv speed : error")))
-
-;;;###autoload
-(defun emms-player-simple-mpv-speed-change (v)
-  "Change speed by V."
-  (emms-player-simple-mpv-tq-clear)
-  (emms-player-simple-mpv-tq-enqueue
-   (list "get_property" "speed")
-   v 'emms-player-simple-mpv--speed-change-1))
-
-;;;###autoload
-(defun emms-player-simple-mpv-speed (v)
-  "Change speed by V."  
-  (interactive "nmpv speed : ")
-  (emms-player-simple-mpv-speed-change v))
-
-;;;###autoload
-(defun emms-player-simple-mpv-speed-up ()
-  "Speed up by `emms-player-simple-mpv-speed-change-amount'."
-  (interactive)
-  (emms-player-simple-mpv-speed-change
-   emms-player-simple-mpv-speed-change-amount))
-
-;;;###autoload
-(defun emms-player-simple-mpv-speed-down ()
-  "Speed down by `emms-player-simple-mpv-speed-change-amount'."
-  (interactive)
-  (emms-player-simple-mpv-speed-change
-   (- emms-player-simple-mpv-speed-change-amount)))
-
 ;;;###autoload
 (defun emms-player-simple-mpv-speed-to (v)
   "Set speed to V."
-  (interactive "nmpv speed to : ")
+  (interactive "nmpv speed to (0.01 - 100): ")
+  (setq v (cond ((< v 0.01) 0.01)
+                ((> v 100) 100)
+                (t v)))
   (emms-player-simple-mpv-tq-enqueue
    (list "set_property" "speed" v)
    v
    (lambda (v ans-ls)
      (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (message "mpv speed : %s" v)
+         (message "mpv speed : %.2f" v)
        (message "mpv speed : error")))))
+
+;;;###autoload
+(defun emms-player-simple-mpv-speed-normal ()
+  "Change speed to normal."
+  (interactive)
+  (emms-player-simple-mpv-speed-to 1))
+
+(defun emms-player-simple-mpv--speed-1 (v ans-ls)
+  "Helper function for `emms-player-simple-mpv-speed'."
+  (if (emms-player-simple-mpv-tq-success-p ans-ls)
+      (let* ((speed (+ (emms-player-simple-mpv-tq-assq-v 'data ans-ls) v)))
+        (emms-player-simple-mpv-speed-to speed))
+    (message "mpv speed : error")))
+
+;;;###autoload
+(defun emms-player-simple-mpv-speed (v)
+  "Change speed by V."
+  (interactive "nmpv speed : ")
+  (emms-player-simple-mpv-tq-clear)
+  (emms-player-simple-mpv-tq-enqueue
+   (list "get_property" "speed")
+   v 'emms-player-simple-mpv--speed-1))
+
+(defun emms-player-simple-mpv--speed-n% (n ans-ls)
+  "Helper function for `emms-player-simple-mpv-speed-%'."
+  (if (emms-player-simple-mpv-tq-success-p ans-ls)
+      (let* ((speed (/ (* (emms-player-simple-mpv-tq-assq-v 'data ans-ls) n)
+                       100.0)))
+        (emms-player-simple-mpv-speed-to speed))
+    (message "mpv speed : error")))
+
+;;;###autoload
+(defun emms-player-simple-mpv-speed-% (n)
+  "N % times speed."
+  (emms-player-simple-mpv-tq-clear)
+  (emms-player-simple-mpv-tq-enqueue
+   (list "get_property" "speed")
+   n 'emms-player-simple-mpv--speed-n%))
+
+;;;###autoload
+(defun emms-player-simple-mpv-speed-increase ()
+  "Increase speed by 10%."
+  (interactive)
+  (emms-player-simple-mpv-speed-% 110))
+
+;;;###autoload
+(defun emms-player-simple-mpv-speed-decrease ()
+  "Decrease speed by 10%."
+  (interactive)
+  (emms-player-simple-mpv-speed-% 90))
+
+;;;###autoload
+(defun emms-player-simple-mpv-speed-double ()
+  "Double speed."
+  (interactive)
+  (emms-player-simple-mpv-speed-% 200))
+
+;;;###autoload
+(defun emms-player-simple-mpv-speed-halve ()
+  "Halve speed."
+  (interactive)
+  (emms-player-simple-mpv-speed-% 50))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-ontop ()
