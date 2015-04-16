@@ -3,7 +3,7 @@
 ;; Copyright (C) 2015 momomo5717
 
 ;; Keywords: emms, mpv
-;; Version: 0.1.2
+;; Version: 0.1.3
 ;; Package-Requires: ((emacs "24") (cl-lib "0.5") (emms "4.0"))
 ;; URL: https://github.com/momomo5717/emms-player-simple-mpv
 
@@ -54,7 +54,7 @@
 (require 'tq)
 (require 'later-do)
 
-(defconst emms-player-simple-mpv-version "0.1.2")
+(defconst emms-player-simple-mpv-version "0.1.3")
 
 (defgroup emms-simple-player-mpv nil
   "An extension of emms-simple-player.el."
@@ -74,6 +74,7 @@
 (defvar emms-player-simple-mpv-default-volume-function emms-volume-change-function
   "Set emms-volume-change-function for buckup.")
 
+;;;###autoload
 (defmacro define-emms-simple-player-mpv (name types regex command &rest args)
   "Extension of `define-emms-simple-player' for mpv JSON IPC."
   (let ((group         (intern (format "emms-player-%s"              name)))
@@ -102,7 +103,7 @@
        :group ',group)
      (emms-player-set ,player-name 'regex   ,regex)
      (emms-player-set ,player-name 'pause   'emms-player-simple-mpv-pause)
-     (emms-player-set ,player-name 'resume  'emms-player-simple-mpv-resume)
+     (emms-player-set ,player-name 'resume  'emms-player-simple-mpv-unpause)
      (emms-player-set ,player-name 'seek    'emms-player-simple-mpv-seek)
      (emms-player-set ,player-name 'seek-to 'emms-player-simple-mpv-seek-to)
      (emms-player-set ,player-name 'get-media-title
@@ -189,9 +190,9 @@ See tq.el."
             (ignore-errors (emms-player-simple-mpv--tq-event-action)))
         (goto-char (point-min))
         (let ((answer-ls (cl-loop with ls
-                          for obj = (ignore-errors (json-read))
-                          unless obj return (nreverse ls)
-                          when obj do (push obj ls)))
+                                  for obj = (ignore-errors (json-read))
+                                  when (null obj) return (nreverse ls)
+                                  do (push obj ls)))
               (fn (tq-queue-head-fn tq))
               (closure (tq-queue-head-closure tq)))
           (delete-region (point-min) (point-max))
@@ -208,8 +209,8 @@ See tq.el."
              (goto-char (point-min))
              (cl-loop with ls
                       for obj = (ignore-errors (json-read))
-                      unless obj return (nreverse ls)
-                      when obj do (push obj ls))))
+                      when (null obj) return (nreverse ls)
+                      do (push obj ls))))
      (cl-loop for ans in ans-ls
               for event = (cdr (assq 'event ans))
               when event do
@@ -222,8 +223,7 @@ See tq.el."
                ((or (equal event "unpause")
                     (equal event "playback-restart"))
                 (setq emms-player-paused-p nil)
-                (run-hooks 'emms-player-paused-hook))
-               (t nil)))
+                (run-hooks 'emms-player-paused-hook))))
      (with-current-buffer buf (erase-buffer)))))
 
 (defun emms-player-simple-mpv-playing-p ()
@@ -232,6 +232,7 @@ See tq.el."
     (when process
      (eq (process-status process) 'open))))
 
+;;;###autoload
 (defun emms-player-simple-mpv-tq-clear ()
   "Clear old messages if it remains in tq."
   (let ((tq emms-player-simple-mpv--tq))
@@ -242,6 +243,7 @@ See tq.el."
   "Build JSON command from COM and PARAMS."
   (concat (json-encode `(("command" . (,com ,@params)))) "\n"))
 
+;;;###autoload
 (defun emms-player-simple-mpv-tq-enqueue
     (com-ls closure fn &optional delay-question)
   "Wrapper function of `tq-enqueue'."
@@ -273,6 +275,7 @@ See tq.el."
   "Return a value of the association for KEY in ANS."
   (cdr (emms-player-simple-mpv-tq-assq key ans)))
 
+;;;###autoload
 (defun emms-player-simple-mpv-tq-data-message (format)
   "Return function to display a data message by FORMAT.
 FORMAT includes a format specification %s."
@@ -283,6 +286,7 @@ FORMAT includes a format specification %s."
             (message "mpv : nothing data message")))
       (message format (emms-player-simple-mpv-tq-assq-v 'error ans-ls)))))
 
+;;;###autoload
 (defun emms-player-simple-mpv-tq-error-message (format)
   "Return function to display an error message by FORMAT.
 FORMAT includes a format specification %s."
@@ -294,6 +298,7 @@ FORMAT includes a format specification %s."
 
 ;; Functions to start mpv
 
+;;;###autoload
 (defun emms-player-simple-mpv-add-to-converters (player regexp types fn &optional appendp)
   "Add a converter to PLAYER's mpv-track-name-converters like `add-to-list'.
 Converter is  \(list REGEXP TYPES FN\).
@@ -309,6 +314,7 @@ FN takes track-name as arg."
                            (nconc converters (list converter))
                          (cons converter converters))))))
 
+;;;###autoload
 (defun emms-player-simple-mpv-remove-converter (player regexp)
   "Remove the converter from PLAYER's mpv-track-name-converters which has REGEXP."
   (let ((converters (emms-player-get player 'mpv-track-name-converters)))
@@ -327,11 +333,11 @@ FN takes track-name as arg."
     (if converter (funcall converter track-name) track-name)))
 
 (defun emms-player-simple-mpv--start-tq-error-message (params input-form)
-  "Error message when faile to start tq-process."
-  (message "Failed to start mpv--tq. Check parameters or input form.
-    %s\n    %s"
-           (mapconcat #'identity  params " ") input-form))
+  "Error message when tq-process fails to start."
+  (message "Failed to start mpv--tq. Check parameters or input form.\n%s%s\n%s%s"
+           "    " (mapconcat #'identity  params " ") "    " input-form))
 
+;;;###autoload
 (defun emms-player-simple-mpv-start (track player cmdname params)
   "Emulate `emms-player-simple-start' but the first arg."
   (emms-player-simple-mpv--tq-close)
@@ -375,6 +381,7 @@ FN takes track-name as arg."
 
 ;; pause
 
+;;;###autoload
 (defun emms-player-simple-mpv-pause ()
   "Pause."
   (emms-player-simple-mpv-tq-enqueue
@@ -382,7 +389,8 @@ FN takes track-name as arg."
    nil
    (emms-player-simple-mpv-tq-error-message "mpv pause : %s")))
 
-(defun emms-player-simple-mpv-resume ()
+;;;###autoload
+(defun emms-player-simple-mpv-unpause ()
   "Unpause."
   (emms-player-simple-mpv-tq-enqueue
    '("set_property_string" "pause" "no")
@@ -400,15 +408,15 @@ FN takes track-name as arg."
              (len (cdr (assq 'len als)))
              (data  (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
              (data+ (+ sec data))
-             (next-sec (round (cond
-                               ((< data+ 0) 0)
-                               ((> data+ len) len)
-                               (t data+))))
-             (h (/ next-sec 3600))
-             (m (/ (- next-sec (* 3600 h)) 60))
-             (s (- next-sec (* 60 (+ (* 60 h) m)))))
+             (next-sec (cond
+                        ((< data+ 0) 0)
+                        ((> data+ len) len)
+                        (t data+)))
+             (h (floor next-sec 3600))
+             (m (floor (- next-sec (* 3600 h)) 60))
+             (s (floor (- next-sec (* 60 (+ (* 60 h) m))))))
         (emms-player-simple-mpv-tq-enqueue
-         (list "seek" (number-to-string next-sec) "absolute")
+         (list "seek" next-sec "absolute")
          (format "mpv seek %s : %02d:%02d:%02d" (if (>= sec 0) ">>" "<<") h m s)
          (lambda (form ans-ls)
            (if (emms-player-simple-mpv-tq-success-p ans-ls)
@@ -420,11 +428,12 @@ FN takes track-name as arg."
   "Helper funcion for `emms-player-simple-mpv-seek'.
 For a track which does not have length property."
   (emms-player-simple-mpv-tq-enqueue
-   (list "seek" (number-to-string sec) "relative")
+   (list "seek" sec "relative")
    nil
    (emms-player-simple-mpv-tq-error-message
     (format "mpv seek %s %+d : %%s" (if (>= sec 0) ">>" "<<") sec))))
 
+;;;###autoload
 (defun emms-player-simple-mpv-seek (sec)
   "Seek by SEC."
   (emms-player-simple-mpv-tq-clear)
@@ -440,25 +449,25 @@ For a track which does not have length property."
             'emms-player-simple-mpv--seek-1))
        (emms-player-simple-mpv--seek-2 sec)))))
 
+;;;###autoload
 (defun emms-player-simple-mpv-seek-to (sec)
   "Seek to SEC."
   (interactive "nmpv seek to (sec) : ")
   (emms-player-simple-mpv-tq-enqueue
-   (list "seek" (number-to-string sec) "absolute")
+   (list "seek" sec "absolute")
    sec
    (lambda (sec ans-ls)
      (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (let* ((sec (round sec))
-                (h (/ sec 3600))
-                (m (/ (- sec (* 3600 h)) 60))
-                (s (- sec (* 60 (+ (* 60 h) m)))))
+         (let* ((h (floor sec 3600))
+                (m (floor (- sec (* 3600 h)) 60))
+                (s (floor (- sec (* 60 (+ (* 60 h) m))))))
            (message "mpv seek to : %02d:%02d:%02d" h m s))
        (message "mpv seek to : error")))))
 
 ;; volume
 
 (defun emms-player-simple-mpv--volume-change-1 (v ans-ls)
-  "Set volume to V in `emms-player-simple-mpv-volume-change'.
+  "Set volume plus V in `emms-player-simple-mpv-volume-change'.
 ANS-LS includes data value."
   (if (emms-player-simple-mpv-tq-success-p ans-ls)
       (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
@@ -476,6 +485,7 @@ ANS-LS includes data value."
              (message "mpv volume : error")))))
     (message "mpv volume : error")))
 
+;;;###autoload
 (defun emms-player-simple-mpv-volume-change (v)
   "Change volume by V."
   (emms-player-simple-mpv-tq-clear)
