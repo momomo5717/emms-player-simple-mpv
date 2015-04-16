@@ -20,7 +20,7 @@
    #+BEGIN_SRC emacs-lisp
      (add-to-list 'load-path "/path/to/emms-player-simple-mpv")
      (require 'emms-player-simple-mpv)
-     ;; If use other control functions, load it.
+     ;; If you use other control functions, load it.
      (require 'emms-player-simple-mpv-control-functions)
    #+END_SRC
 
@@ -49,7 +49,7 @@
 
 ***** Function: =emms-player-simple-mpv-add-to-converters player regexp types fn &optional appendp=
 
-      =emms-player-simple-mpv-add-to-converters= adds =(list regexp types fn)= to player's =mpv-track-name-converters=.
+      This function adds =(list regexp types fn)= to player's =mpv-track-name-converters=.
       =fn= converts track name to input form
       when mpv needs specific format such as ffplay format for playing some protocols.
 
