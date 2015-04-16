@@ -103,7 +103,7 @@
        :group ',group)
      (emms-player-set ,player-name 'regex   ,regex)
      (emms-player-set ,player-name 'pause   'emms-player-simple-mpv-pause)
-     (emms-player-set ,player-name 'resume  'emms-player-simple-mpv-resume)
+     (emms-player-set ,player-name 'resume  'emms-player-simple-mpv-unpause)
      (emms-player-set ,player-name 'seek    'emms-player-simple-mpv-seek)
      (emms-player-set ,player-name 'seek-to 'emms-player-simple-mpv-seek-to)
      (emms-player-set ,player-name 'get-media-title
@@ -223,8 +223,7 @@ See tq.el."
                ((or (equal event "unpause")
                     (equal event "playback-restart"))
                 (setq emms-player-paused-p nil)
-                (run-hooks 'emms-player-paused-hook))
-               (t nil)))
+                (run-hooks 'emms-player-paused-hook))))
      (with-current-buffer buf (erase-buffer)))))
 
 (defun emms-player-simple-mpv-playing-p ()
@@ -391,7 +390,7 @@ FN takes track-name as arg."
    (emms-player-simple-mpv-tq-error-message "mpv pause : %s")))
 
 ;;;###autoload
-(defun emms-player-simple-mpv-resume ()
+(defun emms-player-simple-mpv-unpause ()
   "Unpause."
   (emms-player-simple-mpv-tq-enqueue
    '("set_property_string" "pause" "no")
@@ -468,7 +467,7 @@ For a track which does not have length property."
 ;; volume
 
 (defun emms-player-simple-mpv--volume-change-1 (v ans-ls)
-  "Set volume to V in `emms-player-simple-mpv-volume-change'.
+  "Set volume plus V in `emms-player-simple-mpv-volume-change'.
 ANS-LS includes data value."
   (if (emms-player-simple-mpv-tq-success-p ans-ls)
       (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
