@@ -263,5 +263,11 @@
   (interactive)
   (emms-player-simple-mpv-cycle "ontop"))
 
+;;;###autoload
+(defun emms-player-simple-mpv-fullscreen ()
+  "Cycle fullscreen."
+  (interactive)
+  (emms-player-simple-mpv-cycle "fullscreen"))
+
 (provide 'emms-player-simple-mpv-control-functions)
 ;;; emms-player-simple-mpv-control-functions.el ends here
