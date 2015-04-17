@@ -25,6 +25,21 @@
 ;;; Code:
 (require 'emms-player-simple-mpv)
 
+(defun emms-player-simple-mpv-cycle (property)
+  "Cycle PROPERTY."
+  (emms-player-simple-mpv-tq-clear)
+  (emms-player-simple-mpv-tq-enqueue
+   (list "cycle" property)
+   property
+   (lambda (property ans-ls)
+     (if (emms-player-simple-mpv-tq-success-p ans-ls)
+         (emms-player-simple-mpv-tq-enqueue
+          (list "get_property_string" property)
+          nil
+          (emms-player-simple-mpv-tq-data-message
+           (concat "mpv " property " : %s")))
+       (message "mpv %s : error" property)))))
+
 ;;;###autoload
 (defun emms-player-simple-mpv-seek-to-% (per)
   "Seek to PER(percent position)."
@@ -79,19 +94,9 @@
 
 ;;;###autoload
 (defun emms-player-simple-mpv-mute ()
-  "Cycle mut."
+  "Cycle mute."
   (interactive)
-  (emms-player-simple-mpv-tq-clear)
-  (emms-player-simple-mpv-tq-enqueue
-   '("cycle" "mute")
-   nil
-   (lambda (_ ans-ls)
-     (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (emms-player-simple-mpv-tq-enqueue
-          '("get_property_string" "mute")
-          nil
-          (emms-player-simple-mpv-tq-data-message "mpv mute : %s"))
-       (message "mpv mute : error")))))
+  (emms-player-simple-mpv-cycle "mute"))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-time-pos ()
@@ -256,17 +261,13 @@
 (defun emms-player-simple-mpv-ontop ()
   "Cycle ontop."
   (interactive)
-  (emms-player-simple-mpv-tq-clear)
-  (emms-player-simple-mpv-tq-enqueue
-   '("cycle" "ontop")
-   nil
-   (lambda (_ ans-ls)
-     (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (emms-player-simple-mpv-tq-enqueue
-          '("get_property_string" "ontop")
-          nil
-          (emms-player-simple-mpv-tq-data-message "mpv ontop : %s"))
-       (message "mpv ontop : error")))))
+  (emms-player-simple-mpv-cycle "ontop"))
+
+;;;###autoload
+(defun emms-player-simple-mpv-fullscreen ()
+  "Cycle fullscreen."
+  (interactive)
+  (emms-player-simple-mpv-cycle "fullscreen"))
 
 (provide 'emms-player-simple-mpv-control-functions)
 ;;; emms-player-simple-mpv-control-functions.el ends here
