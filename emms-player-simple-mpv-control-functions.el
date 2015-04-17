@@ -79,7 +79,7 @@
 
 ;;;###autoload
 (defun emms-player-simple-mpv-mute ()
-  "Cycle mut."
+  "Cycle mute."
   (interactive)
   (emms-player-simple-mpv-tq-clear)
   (emms-player-simple-mpv-tq-enqueue
