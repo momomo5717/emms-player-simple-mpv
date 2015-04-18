@@ -1,4 +1,4 @@
-;;; emms-player-simple-mpv.el --- an extension of emms-palyer-simple.el for mpv JSON IPC  -*- lexical-binding: t -*-
+;;; emms-player-simple-mpv.el --- An extension of emms-player-simple.el for mpv JSON IPC  -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2015 momomo5717
 
