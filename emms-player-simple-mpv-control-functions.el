@@ -79,6 +79,7 @@
 ;;;###autoload
 (defun emms-player-simple-mpv-mute-on ()
   "Mute on."
+  (interactive)
   (emms-player-simple-mpv-tq-enqueue
    '("set_property_string" "mute" "yes")
    nil
@@ -87,6 +88,7 @@
 ;;;###autoload
 (defun emms-player-simple-mpv-mute-off ()
   "Mute off."
+  (interactive)
   (emms-player-simple-mpv-tq-enqueue
    '("set_property_string" "mute" "no")
    nil
