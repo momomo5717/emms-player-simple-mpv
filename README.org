@@ -1,3 +1,6 @@
+[[http://melpa.org/#/emms-player-simple-mpv][file:http://melpa.org/packages/emms-player-simple-mpv-badge.svg]]
+[[http://stable.melpa.org/#/emms-player-simple-mpv][file:http://stable.melpa.org/packages/emms-player-simple-mpv-badge.svg]]
+
 * emms-player-simple-mpv
 
 ** What is it ?
