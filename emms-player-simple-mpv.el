@@ -216,8 +216,7 @@ See tq.el."
               when event do
               (cond
                ((or (equal event "pause")
-                    (equal event "seek")
-                    (equal event "tracks-changed"))
+                    (equal event "seek"))
                 (setq emms-player-paused-p t)
                 (run-hooks 'emms-player-paused-hook))
                ((or (equal event "unpause")
