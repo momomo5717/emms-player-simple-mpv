@@ -5,7 +5,7 @@
 
 ** What is it ?
 
-  emms-player-simple-mpv.el is an extension of emms-palyer-simple.el for mpv JSON IPC.
+  emms-player-simple-mpv.el is an extension of emms-player-simple.el for mpv JSON IPC.
   It provides basic functions for interface defined in EMMS ( [[https://www.gnu.org/software/emms/][The Emacs Multimedia System]] ).
 
   emms-player-simple-mpv-control-functions.el provides other functions to control mpv.
