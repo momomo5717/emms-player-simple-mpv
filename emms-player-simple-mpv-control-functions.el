@@ -25,6 +25,7 @@
 ;;; Code:
 (require 'emms-player-simple-mpv)
 
+;;;###autoload
 (defun emms-player-simple-mpv-cycle (property)
   "Cycle PROPERTY."
   (emms-player-simple-mpv-tq-clear)
@@ -68,29 +69,19 @@
 (defun emms-player-simple-mpv-volume-to (v)
   "Set volume to V."
   (interactive "nmpv volume to : ")
-  (emms-player-simple-mpv-tq-enqueue
-   (list "set_property" "volume" v)
-   v
-   (lambda (v ans-ls)
-     (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (message "mpv volume : %s" v)
-       (message "mpv volume : error")))))
+  (emms-player-simple-mpv-set_property "volume" v))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-mute-on ()
   "Mute on."
-  (emms-player-simple-mpv-tq-enqueue
-   '("set_property_string" "mute" "yes")
-   nil
-   (emms-player-simple-mpv-tq-error-message "mpv mute on : %s")))
+  (emms-player-simple-mpv-set_property_string
+   "mute" "yes" :spec "success" :msg "mute on" :err-msg "mute on"))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-mute-off ()
   "Mute off."
-  (emms-player-simple-mpv-tq-enqueue
-   '("set_property_string" "mute" "no")
-   nil
-   (emms-player-simple-mpv-tq-error-message "mpv mute off : %s")))
+  (emms-player-simple-mpv-set_property_string
+   "mute" "no" :spec "success" :msg "mute off" :err-msg "mute off"))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-mute ()
@@ -207,13 +198,7 @@
   (setq v (cond ((< v 0.01) 0.01)
                 ((> v 100) 100)
                 (t v)))
-  (emms-player-simple-mpv-tq-enqueue
-   (list "set_property" "speed" v)
-   v
-   (lambda (v ans-ls)
-     (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (message "mpv speed : %.2f" v)
-       (message "mpv speed : error")))))
+  (emms-player-simple-mpv-set_property "speed" v :spec "%.2f"))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-speed-normal ()

@@ -378,23 +378,49 @@ FN takes track-name as arg."
 
 ;; Functions to control mpv
 
+(defmacro emms-player-simple-mpv--set_property-1 (command)
+  "Helper macro emms-player-simple-mpv-set_property\(_string\)."
+  `(emms-player-simple-mpv-tq-enqueue
+    (list ,command property value)
+    nil
+    (lambda (_ ans-ls)
+      (if (emms-player-simple-mpv-tq-success-p ans-ls)
+          (message (format "mpv %s : %s" msg spec) (funcall fn value))
+        (message "mpv %s : error" err-msg)))))
+
+;;;###autoload
+(cl-defun emms-player-simple-mpv-set_property
+    (property value &key (spec "%s") (msg property) (err-msg property) (fn #'identity))
+  "Set PROPERTY to VALUE.
+:SPEC is a format specification.
+:MSG is displayed when command succeeds.
+:ERR-MSG is displayed when command fails.
+:FN converts value."
+  (emms-player-simple-mpv--set_property-1 "set_property"))
+
+;;;###autoload
+(cl-defun emms-player-simple-mpv-set_property_string
+    (property value &key (spec "%s") (msg property) (err-msg property) (fn #'identity))
+    "Set PROPERTY to VALUE.
+:SPEC is a format specification.
+:MSG is displayed when command succeeds.
+:ERR-MSG is displayed when command fails.
+:FN converts value."
+  (emms-player-simple-mpv--set_property-1 "set_property_string"))
+
 ;; pause
 
 ;;;###autoload
 (defun emms-player-simple-mpv-pause ()
   "Pause."
-  (emms-player-simple-mpv-tq-enqueue
-   '("set_property_string" "pause" "yes")
-   nil
-   (emms-player-simple-mpv-tq-error-message "mpv pause : %s")))
+  (emms-player-simple-mpv-set_property_string
+   "pause" "yes" :spec "success"))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-unpause ()
   "Unpause."
-  (emms-player-simple-mpv-tq-enqueue
-   '("set_property_string" "pause" "no")
-   nil
-   (emms-player-simple-mpv-tq-error-message "mpv unpause : %s")))
+  (emms-player-simple-mpv-set_property_string
+   "pause" "no" :spec "success" :msg "unpause" :err-msg "unpause"))
 
 ;; seek
 
@@ -475,13 +501,7 @@ ANS-LS includes data value."
                    ((< data+ 0) 0)
                    ((> data+ 100) 100)
                    (t data+))))
-        (emms-player-simple-mpv-tq-enqueue
-         (list "set_property" "volume" vol)
-         vol
-         (lambda (vol ans-ls)
-           (if (emms-player-simple-mpv-tq-success-p ans-ls)
-               (message "mpv volume : %s" vol)
-             (message "mpv volume : error")))))
+        (emms-player-simple-mpv-set_property "volume" vol))
     (message "mpv volume : error")))
 
 ;;;###autoload
