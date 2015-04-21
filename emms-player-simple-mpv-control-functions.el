@@ -114,17 +114,37 @@
            (message "mpv time position : %02d:%02d:%02d" h m s))
        (message "mpv time position : error")))))
 
-;;;###autoload
-(defun emms-player-simple-mpv-time-pos-% ()
-  "Display position (0-100) in current file."
-  (interactive)
+(defun emms-player-simple-mpv-time-pos-%-1 (form length)
+  "Helper function for `emms-player-simple-mpv-time-pos-%'."
   (emms-player-simple-mpv-tq-enqueue
    '("get_property" "percent-pos")
    nil
    (lambda (_ ans-ls)
      (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (message "mpv time position (%%) : %.2f"
-                  (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+         (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+                (pos (/ (* data length) 100.0))
+                (h (floor pos 3600))
+                (m (floor (- pos (* 3600 h)) 60))
+                (s (floor (- pos (* 60 (+ (* 60 h) m))))))
+           (message form data h m s))
+       (message "mpv time position (%%) : error")))))
+
+;;;###autoload
+(defun emms-player-simple-mpv-time-pos-% ()
+  "Display position (0-100) in current file."
+  (interactive)
+  (emms-player-simple-mpv-tq-enqueue
+   '("get_property" "length")
+   nil
+   (lambda (_ ans-ls)
+     (if (emms-player-simple-mpv-tq-success-p ans-ls)
+         (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+                (h (floor data 3600))
+                (m (floor (- data (* 3600 h)) 60))
+                (s (floor (- data (* 60 (+ (* 60 h) m)))))
+                (form "mpv time position (%%%%) : %%.1f (%%02d:%%02d:%%02d / %02d:%02d:%02d)")
+                (form (format form h m s)))
+           (emms-player-simple-mpv-time-pos-%-1 form data))
        (message "mpv time position (%%) : error")))))
 
 (defmacro emms-player-simple-mpv--playlist-change-1 (str)
