@@ -401,12 +401,19 @@ FN takes track-name as arg."
 ;;;###autoload
 (cl-defun emms-player-simple-mpv-set_property_string
     (property value &key (spec "%s") (msg property) (err-msg property) (fn #'identity))
-    "Set PROPERTY to VALUE.
+  "Set PROPERTY to VALUE.
 :SPEC is a format specification.
 :MSG is displayed when command succeeds.
 :ERR-MSG is displayed when command fails.
 :FN converts value."
   (emms-player-simple-mpv--set_property-1 "set_property_string"))
+
+(defsubst emms-player-simple-mpv--time-string (sec)
+  "SEC to \"%02h:%02m:%02s\"."
+  (let* ((h (floor sec 3600))
+         (m (floor (- sec (* 3600 h)) 60))
+         (s (- sec (* 60 (+ (* 60 h) m)))))
+    (format "%02d:%02d:%02d" h m s)))
 
 ;; pause
 
@@ -437,12 +444,10 @@ FN takes track-name as arg."
                         ((< data+ 0) 0)
                         ((> data+ len) len)
                         (t data+)))
-             (h (floor next-sec 3600))
-             (m (floor (- next-sec (* 3600 h)) 60))
-             (s (floor (- next-sec (* 60 (+ (* 60 h) m))))))
+             (time (emms-player-simple-mpv--time-string next-sec)))
         (emms-player-simple-mpv-tq-enqueue
          (list "seek" next-sec "absolute")
-         (format "mpv seek %s : %02d:%02d:%02d" (if (>= sec 0) ">>" "<<") h m s)
+         (format "mpv seek %s : %s" (if (>= sec 0) ">>" "<<") time)
          (lambda (form ans-ls)
            (if (emms-player-simple-mpv-tq-success-p ans-ls)
                (message form)
@@ -483,10 +488,7 @@ For a track which does not have length property."
    sec
    (lambda (sec ans-ls)
      (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (let* ((h (floor sec 3600))
-                (m (floor (- sec (* 3600 h)) 60))
-                (s (floor (- sec (* 60 (+ (* 60 h) m))))))
-           (message "mpv seek to : %02d:%02d:%02d" h m s))
+         (message "mpv seek to : %s" (emms-player-simple-mpv--time-string sec))
        (message "mpv seek to : error")))))
 
 ;; volume

@@ -52,13 +52,12 @@
    (lambda (per ans-ls)
      (if (emms-player-simple-mpv-tq-success-p ans-ls)
          (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+                (total-time (emms-player-simple-mpv--time-string data))
                 (pos  (floor (* per data) 100))
-                (h (floor pos 3600))
-                (m (floor (- pos (* 3600 h)) 60))
-                (s (- pos (* 60 (+ (* 60 h) m)))))
+                (time (emms-player-simple-mpv--time-string pos)))
            (emms-player-simple-mpv-tq-enqueue
             (list "seek" per "absolute-percent")
-            (format "mpv seek to %s(%%%%) : %02d:%02d:%02d" per h m s)
+            (format "mpv seek to (%%%%) : %.1f (%s / %s)" per time total-time)
             (lambda (form ans-ls)
               (if (emms-player-simple-mpv-tq-success-p ans-ls)
                   (message form)
@@ -98,11 +97,9 @@
    nil
    (lambda (_ ans-ls)
      (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
-                (h (floor data 3600))
-                (m (floor (- data (* 3600 h)) 60))
-                (s (floor (- data (* 60 (+ (* 60 h) m))))))
-           (message "mpv time position : %02d:%02d:%02d" h m s))
+         (message "mpv time position : %s"
+                  (emms-player-simple-mpv--time-string
+                   (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
        (message "mpv time position : error")))))
 
 (defun emms-player-simple-mpv-time-pos-%-1 (form length)
@@ -114,10 +111,8 @@
      (if (emms-player-simple-mpv-tq-success-p ans-ls)
          (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
                 (pos (/ (* data length) 100.0))
-                (h (floor pos 3600))
-                (m (floor (- pos (* 3600 h)) 60))
-                (s (floor (- pos (* 60 (+ (* 60 h) m))))))
-           (message form data h m s))
+                (time (emms-player-simple-mpv--time-string pos)))
+           (message form data time))
        (message "mpv time position (%%) : error")))))
 
 ;;;###autoload
@@ -130,11 +125,8 @@
    (lambda (_ ans-ls)
      (if (emms-player-simple-mpv-tq-success-p ans-ls)
          (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
-                (h (floor data 3600))
-                (m (floor (- data (* 3600 h)) 60))
-                (s (floor (- data (* 60 (+ (* 60 h) m)))))
-                (form "mpv time position (%%%%) : %%.1f (%%02d:%%02d:%%02d / %02d:%02d:%02d)")
-                (form (format form h m s)))
+                (form "mpv time position (%%%%) : %%.1f (%%s / %s)")
+                (form (format form (emms-player-simple-mpv--time-string data))))
            (emms-player-simple-mpv-time-pos-%-1 form data))
        (message "mpv time position (%%) : error")))))
 
