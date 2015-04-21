@@ -25,6 +25,7 @@
 ;;; Code:
 (require 'emms-player-simple-mpv)
 
+;;;###autoload
 (defun emms-player-simple-mpv-cycle (property)
   "Cycle PROPERTY."
   (emms-player-simple-mpv-tq-clear)
@@ -51,13 +52,12 @@
    (lambda (per ans-ls)
      (if (emms-player-simple-mpv-tq-success-p ans-ls)
          (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+                (total-time (emms-player-simple-mpv--time-string data))
                 (pos  (floor (* per data) 100))
-                (h (floor pos 3600))
-                (m (floor (- pos (* 3600 h)) 60))
-                (s (- pos (* 60 (+ (* 60 h) m)))))
+                (time (emms-player-simple-mpv--time-string pos)))
            (emms-player-simple-mpv-tq-enqueue
             (list "seek" per "absolute-percent")
-            (format "mpv seek to %s(%%%%) : %02d:%02d:%02d" per h m s)
+            (format "mpv seek to (%%%%) : %.1f (%s / %s)" per time total-time)
             (lambda (form ans-ls)
               (if (emms-player-simple-mpv-tq-success-p ans-ls)
                   (message form)
@@ -68,29 +68,19 @@
 (defun emms-player-simple-mpv-volume-to (v)
   "Set volume to V."
   (interactive "nmpv volume to : ")
-  (emms-player-simple-mpv-tq-enqueue
-   (list "set_property" "volume" v)
-   v
-   (lambda (v ans-ls)
-     (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (message "mpv volume : %s" v)
-       (message "mpv volume : error")))))
+  (emms-player-simple-mpv-set_property "volume" v))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-mute-on ()
   "Mute on."
-  (emms-player-simple-mpv-tq-enqueue
-   '("set_property_string" "mute" "yes")
-   nil
-   (emms-player-simple-mpv-tq-error-message "mpv mute on : %s")))
+  (emms-player-simple-mpv-set_property_string
+   "mute" "yes" :spec "success" :msg "mute on" :err-msg "mute on"))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-mute-off ()
   "Mute off."
-  (emms-player-simple-mpv-tq-enqueue
-   '("set_property_string" "mute" "no")
-   nil
-   (emms-player-simple-mpv-tq-error-message "mpv mute off : %s")))
+  (emms-player-simple-mpv-set_property_string
+   "mute" "no" :spec "success" :msg "mute off" :err-msg "mute off"))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-mute ()
@@ -107,24 +97,37 @@
    nil
    (lambda (_ ans-ls)
      (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
-                (h (floor data 3600))
-                (m (floor (- data (* 3600 h)) 60))
-                (s (floor (- data (* 60 (+ (* 60 h) m))))))
-           (message "mpv time position : %02d:%02d:%02d" h m s))
+         (message "mpv time position : %s"
+                  (emms-player-simple-mpv--time-string
+                   (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
        (message "mpv time position : error")))))
+
+(defun emms-player-simple-mpv-time-pos-%-1 (form length)
+  "Helper function for `emms-player-simple-mpv-time-pos-%'."
+  (emms-player-simple-mpv-tq-enqueue
+   '("get_property" "percent-pos")
+   nil
+   (lambda (_ ans-ls)
+     (if (emms-player-simple-mpv-tq-success-p ans-ls)
+         (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+                (pos (/ (* data length) 100.0))
+                (time (emms-player-simple-mpv--time-string pos)))
+           (message form data time))
+       (message "mpv time position (%%) : error")))))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-time-pos-% ()
   "Display position (0-100) in current file."
   (interactive)
   (emms-player-simple-mpv-tq-enqueue
-   '("get_property" "percent-pos")
+   '("get_property" "length")
    nil
    (lambda (_ ans-ls)
      (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (message "mpv time position (%%) : %.2f"
-                  (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+         (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+                (form "mpv time position (%%%%) : %%.1f (%%s / %s)")
+                (form (format form (emms-player-simple-mpv--time-string data))))
+           (emms-player-simple-mpv-time-pos-%-1 form data))
        (message "mpv time position (%%) : error")))))
 
 (defmacro emms-player-simple-mpv--playlist-change-1 (str)
@@ -161,6 +164,34 @@
   (interactive)
   (emms-player-simple-mpv--playlist-change-1 "prev"))
 
+(defun emms-player-simple-mpv--playlist-to-1 (n)
+  "Helper function for `emms-player-simple-mpv-playlist-to'.
+Set playlist-pos to N."
+  (emms-player-simple-mpv-set_property
+   "playlist-pos" n :msg "playlist position" :err-msg "playlist to"))
+
+(defun emms-player-simple-mpv--playlist-to-2 ()
+  "Helper function for `emms-player-simple-mpv-playlist-to'."
+  (emms-player-simple-mpv-tq-enqueue
+   '("get_property" "playlist-count")
+   nil
+   (lambda (_ ans-ls)
+     (if (emms-player-simple-mpv-tq-success-p ans-ls)
+         (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+                (n (read-number
+                    (format "mpv playlist to (0 - %s) : " (1- data)))))
+          (emms-player-simple-mpv--playlist-to-1 n))
+       (message "mpv playlist to : error")))))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-to (&optional n)
+  "Go to the Nth entry on the playlist."
+  (interactive)
+  (emms-player-simple-mpv-tq-clear)
+  (if (called-interactively-p 'any)
+      (emms-player-simple-mpv--playlist-to-2)
+    (emms-player-simple-mpv--playlist-to-1 n)))
+
 ;;;###autoload
 (defun emms-player-simple-mpv-playlist-pos ()
   "Display current position on the playlist."
@@ -172,7 +203,7 @@
      (if (emms-player-simple-mpv-tq-success-p ans-ls)
          (emms-player-simple-mpv-tq-enqueue
           '("get_property" "playlist-pos")
-          (format "mpv playlist position : %%s  (total %s)"
+          (format "mpv playlist position : %%s (total %s)"
                   (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
           (lambda (form ans-ls)
             (if (emms-player-simple-mpv-tq-success-p ans-ls)
@@ -187,13 +218,7 @@
   (setq v (cond ((< v 0.01) 0.01)
                 ((> v 100) 100)
                 (t v)))
-  (emms-player-simple-mpv-tq-enqueue
-   (list "set_property" "speed" v)
-   v
-   (lambda (v ans-ls)
-     (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (message "mpv speed : %.2f" v)
-       (message "mpv speed : error")))))
+  (emms-player-simple-mpv-set_property "speed" v :spec "%.2f"))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-speed-normal ()

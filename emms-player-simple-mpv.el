@@ -378,23 +378,56 @@ FN takes track-name as arg."
 
 ;; Functions to control mpv
 
+(defmacro emms-player-simple-mpv--set_property-1 (command)
+  "Helper macro emms-player-simple-mpv-set_property\(_string\)."
+  `(emms-player-simple-mpv-tq-enqueue
+    (list ,command property value)
+    nil
+    (lambda (_ ans-ls)
+      (if (emms-player-simple-mpv-tq-success-p ans-ls)
+          (message (format "mpv %s : %s" msg spec) (funcall fn value))
+        (message "mpv %s : error" err-msg)))))
+
+;;;###autoload
+(cl-defun emms-player-simple-mpv-set_property
+    (property value &key (spec "%s") (msg property) (err-msg property) (fn #'identity))
+  "Set PROPERTY to VALUE.
+:SPEC is a format specification.
+:MSG is displayed when command succeeds.
+:ERR-MSG is displayed when command fails.
+:FN converts value."
+  (emms-player-simple-mpv--set_property-1 "set_property"))
+
+;;;###autoload
+(cl-defun emms-player-simple-mpv-set_property_string
+    (property value &key (spec "%s") (msg property) (err-msg property) (fn #'identity))
+  "Set PROPERTY to VALUE.
+:SPEC is a format specification.
+:MSG is displayed when command succeeds.
+:ERR-MSG is displayed when command fails.
+:FN converts value."
+  (emms-player-simple-mpv--set_property-1 "set_property_string"))
+
+(defsubst emms-player-simple-mpv--time-string (sec)
+  "SEC to \"%02h:%02m:%02s\"."
+  (let* ((h (floor sec 3600))
+         (m (floor (- sec (* 3600 h)) 60))
+         (s (- sec (* 60 (+ (* 60 h) m)))))
+    (format "%02d:%02d:%02d" h m s)))
+
 ;; pause
 
 ;;;###autoload
 (defun emms-player-simple-mpv-pause ()
   "Pause."
-  (emms-player-simple-mpv-tq-enqueue
-   '("set_property_string" "pause" "yes")
-   nil
-   (emms-player-simple-mpv-tq-error-message "mpv pause : %s")))
+  (emms-player-simple-mpv-set_property_string
+   "pause" "yes" :spec "success"))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-unpause ()
   "Unpause."
-  (emms-player-simple-mpv-tq-enqueue
-   '("set_property_string" "pause" "no")
-   nil
-   (emms-player-simple-mpv-tq-error-message "mpv unpause : %s")))
+  (emms-player-simple-mpv-set_property_string
+   "pause" "no" :spec "success" :msg "unpause" :err-msg "unpause"))
 
 ;; seek
 
@@ -411,12 +444,10 @@ FN takes track-name as arg."
                         ((< data+ 0) 0)
                         ((> data+ len) len)
                         (t data+)))
-             (h (floor next-sec 3600))
-             (m (floor (- next-sec (* 3600 h)) 60))
-             (s (floor (- next-sec (* 60 (+ (* 60 h) m))))))
+             (time (emms-player-simple-mpv--time-string next-sec)))
         (emms-player-simple-mpv-tq-enqueue
          (list "seek" next-sec "absolute")
-         (format "mpv seek %s : %02d:%02d:%02d" (if (>= sec 0) ">>" "<<") h m s)
+         (format "mpv seek %s : %s" (if (>= sec 0) ">>" "<<") time)
          (lambda (form ans-ls)
            (if (emms-player-simple-mpv-tq-success-p ans-ls)
                (message form)
@@ -457,10 +488,7 @@ For a track which does not have length property."
    sec
    (lambda (sec ans-ls)
      (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (let* ((h (floor sec 3600))
-                (m (floor (- sec (* 3600 h)) 60))
-                (s (floor (- sec (* 60 (+ (* 60 h) m))))))
-           (message "mpv seek to : %02d:%02d:%02d" h m s))
+         (message "mpv seek to : %s" (emms-player-simple-mpv--time-string sec))
        (message "mpv seek to : error")))))
 
 ;; volume
@@ -475,13 +503,7 @@ ANS-LS includes data value."
                    ((< data+ 0) 0)
                    ((> data+ 100) 100)
                    (t data+))))
-        (emms-player-simple-mpv-tq-enqueue
-         (list "set_property" "volume" vol)
-         vol
-         (lambda (vol ans-ls)
-           (if (emms-player-simple-mpv-tq-success-p ans-ls)
-               (message "mpv volume : %s" vol)
-             (message "mpv volume : error")))))
+        (emms-player-simple-mpv-set_property "volume" vol))
     (message "mpv volume : error")))
 
 ;;;###autoload
