@@ -174,9 +174,9 @@
 
 (defun emms-player-simple-mpv--playlist-to-1 (n)
   "Helper function for `emms-player-simple-mpv-playlist-to'.
-Set palylist to N."
+Set playlist-pos to N."
   (emms-player-simple-mpv-set_property
-   "playlist-pos" n :msg "playlist position" :err-msg "palylist to"))
+   "playlist-pos" n :msg "playlist position" :err-msg "playlist to"))
 
 (defun emms-player-simple-mpv--playlist-to-2 ()
   "Helper function for `emms-player-simple-mpv-playlist-to'."
@@ -193,7 +193,7 @@ Set palylist to N."
 
 ;;;###autoload
 (defun emms-player-simple-mpv-playlist-to (&optional n)
-  "Set playlist to N."
+  "Go to the Nth entry on the playlist."
   (interactive)
   (emms-player-simple-mpv-tq-clear)
   (if (called-interactively-p 'any)
