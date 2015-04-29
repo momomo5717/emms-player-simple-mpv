@@ -95,25 +95,19 @@
   (emms-player-simple-mpv-tq-enqueue
    '("get_property" "time-pos")
    nil
-   (lambda (_ ans-ls)
-     (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (message "mpv time position : %s"
-                  (emms-player-simple-mpv--time-string
-                   (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
-       (message "mpv time position : error")))))
+   (emms-player-simple-mpv-tq-data-message
+    "mpv time position : %s" :err-form "mpv time position : error"
+    :fn #'emms-player-simple-mpv--time-string)))
 
 (defun emms-player-simple-mpv-time-pos-%-1 (form length)
   "Helper function for `emms-player-simple-mpv-time-pos-%'."
   (emms-player-simple-mpv-tq-enqueue
    '("get_property" "percent-pos")
    nil
-   (lambda (_ ans-ls)
-     (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
-                (pos (/ (* data length) 100.0))
-                (time (emms-player-simple-mpv--time-string pos)))
-           (message form data time))
-       (message "mpv time position (%%) : error")))))
+   (emms-player-simple-mpv-tq-data-message
+    "%s" :err-form "mpv time position (%%) : error"
+    :fn (lambda (data)
+          (format form data (emms-player-simple-mpv--time-string (/ (* data length) 100.0)))))))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-time-pos-% ()
@@ -145,11 +139,8 @@
                                    ,str (+ data ,n))))
                 (emms-player-simple-mpv-tq-enqueue
                  '(,(format "playlist_%s" str))
-                 form
-                 (lambda (form ans-ls)
-                   (if (emms-player-simple-mpv-tq-success-p ans-ls)
-                       (message form "success")
-                     (message form "error")))))
+                 nil
+                 (emms-player-simple-mpv-tq-error-message form)))
             (message ,(format "mpv playlist_%s : error" str))))))))
 
 ;;;###autoload
@@ -203,12 +194,10 @@ Set playlist-pos to N."
      (if (emms-player-simple-mpv-tq-success-p ans-ls)
          (emms-player-simple-mpv-tq-enqueue
           '("get_property" "playlist-pos")
-          (format "mpv playlist position : %%s (total %s)"
-                  (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
-          (lambda (form ans-ls)
-            (if (emms-player-simple-mpv-tq-success-p ans-ls)
-                (message form (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
-              (message "mpv playlist position : error"))))
+          nil
+          (emms-player-simple-mpv-tq-data-message
+           (format "mpv playlist position : %%s (total %s)"
+                   (emms-player-simple-mpv-tq-assq-v 'data ans-ls))))
        (message "mpv playlist position : error")))))
 
 ;;;###autoload
