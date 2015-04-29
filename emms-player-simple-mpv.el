@@ -275,24 +275,26 @@ See tq.el."
   (cdr (emms-player-simple-mpv-tq-assq key ans)))
 
 ;;;###autoload
-(defun emms-player-simple-mpv-tq-data-message (format)
-  "Return function to display a data message by FORMAT.
-FORMAT includes a format specification %s."
+(cl-defun emms-player-simple-mpv-tq-data-message
+    (form &key (fn #'identity) (err-form form))
+  "Return function to display a data message by FORM.
+FORM can include a format specification for data.
+:FN takes data as an argument.
+:ERR-FORM can include a format specification %s."
   (lambda (_ ans-ls)
     (if (emms-player-simple-mpv-tq-success-p ans-ls)
         (let ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
-          (if data (message format data)
+          (if data (message form (funcall fn data))
             (message "mpv : nothing data message")))
-      (message format (emms-player-simple-mpv-tq-assq-v 'error ans-ls)))))
+      (message err-form (emms-player-simple-mpv-tq-assq-v 'error ans-ls)))))
 
 ;;;###autoload
-(defun emms-player-simple-mpv-tq-error-message (format)
-  "Return function to display an error message by FORMAT.
-FORMAT includes a format specification %s."
+(defun emms-player-simple-mpv-tq-error-message (form)
+  "Return function to display an error message by FORM.
+FORM can include a format specification %s."
   (lambda (_ ans-ls)
-    (let ((err-msg (emms-player-simple-mpv-tq-assq-v 'error ans-ls)))
-      (if err-msg
-          (message format err-msg)
+    (let ((err (emms-player-simple-mpv-tq-assq-v 'error ans-ls)))
+      (if err (message form err)
         (message "mpv : nothing error message")))))
 
 ;; Functions to start mpv
@@ -303,7 +305,7 @@ FORMAT includes a format specification %s."
 Converter is  \(list REGEXP TYPES FN\).
 If APPENDP is no-nil,add converter to last.
 TYPES is type list or t.
-FN takes track-name as arg."
+FN takes track-name as an argument."
   (let ((converters (emms-player-get player 'mpv-track-name-converters))
         (converter (list regexp types fn)))
     (if (cl-find regexp converters :key #'car :test #'equal)
@@ -392,20 +394,20 @@ FN takes track-name as arg."
 (cl-defun emms-player-simple-mpv-set_property
     (property value &key (spec "%s") (msg property) (err-msg property) (fn #'identity))
   "Set PROPERTY to VALUE.
-:SPEC is a format specification.
+:SPEC is a format specification for VALUE.
 :MSG is displayed when command succeeds.
 :ERR-MSG is displayed when command fails.
-:FN converts value."
+:FN takes VALUE as an argument."
   (emms-player-simple-mpv--set_property-1 "set_property"))
 
 ;;;###autoload
 (cl-defun emms-player-simple-mpv-set_property_string
     (property value &key (spec "%s") (msg property) (err-msg property) (fn #'identity))
   "Set PROPERTY to VALUE.
-:SPEC is a format specification.
+:SPEC is a format specification for VALUE.
 :MSG is displayed when command succeeds.
 :ERR-MSG is displayed when command fails.
-:FN converts value."
+:FN takes VALUE as an argument."
   (emms-player-simple-mpv--set_property-1 "set_property_string"))
 
 (defsubst emms-player-simple-mpv--time-string (sec)
