@@ -204,26 +204,36 @@ See tq.el."
   (let ((buf (get-buffer emms-player-simple-mpv--tq-event-buffer-name))
         ans-ls)
     (when (buffer-live-p buf)
-     (setq ans-ls
-           (with-current-buffer buf
-             (goto-char (point-min))
-             (cl-loop with ls
-                      for obj = (ignore-errors (json-read))
-                      when (null obj) return (nreverse ls)
-                      do (push obj ls))))
-     (cl-loop for ans in ans-ls
-              for event = (cdr (assq 'event ans))
-              when event do
-              (cond
-               ((or (equal event "pause")
-                    (equal event "seek"))
-                (setq emms-player-paused-p t)
-                (run-hooks 'emms-player-paused-hook))
-               ((or (equal event "unpause")
-                    (equal event "playback-restart"))
-                (setq emms-player-paused-p nil)
-                (run-hooks 'emms-player-paused-hook))))
-     (with-current-buffer buf (erase-buffer)))))
+      (setq ans-ls
+            (with-current-buffer buf
+              (goto-char (point-min))
+              (cl-loop with ls
+                       for obj = (ignore-errors (json-read))
+                       when (null obj) return (nreverse ls)
+                       do (push obj ls))))
+      (with-current-buffer buf (erase-buffer))
+      (cl-loop for ans in ans-ls
+               for event = (cdr (assq 'event ans))
+               when event do
+               (cond
+                ((equal event "pause")
+                 (setq emms-player-paused-p t)
+                 (run-hooks 'emms-player-paused-hook))
+                ((equal event "unpause")
+                 (setq emms-player-paused-p nil)
+                 (run-hooks 'emms-player-paused-hook))
+                ((equal event "playback-restart")
+                 (emms-player-simple-mpv-tq-enqueue
+                  '("get_property" "pause")
+                  nil
+                  (lambda (_ ans-ls)
+                    (when (emms-player-simple-mpv-tq-success-p ans-ls)
+                      (let ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+                        (when data
+                          (if (eq data t)
+                              (setq emms-player-paused-p t)
+                            (setq emms-player-paused-p nil))
+                          (run-hooks 'emms-player-paused-hook))))))))))))
 
 (defun emms-player-simple-mpv-playing-p ()
   "Return t when `emms-player-simple-mpv--tq' process is open."
