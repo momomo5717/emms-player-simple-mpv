@@ -13,10 +13,10 @@
 ** Requirements
 
    + GNU Emacs 24 or later
-   + EMMS 4.0
+   + EMMS 4.0 or later
    + mpv v0.7 or later ( [[https://github.com/mpv-player/mpv]] )
 
-   Tested with GNU Emacs 24.4 (emacs-mac-app @5.4_0), EMMS 4.0, mpv @0.8.3_0.
+   Tested with GNU Emacs 24.5 (emacs-mac-app @5.7_0), EMMS 4.0, mpv @0.8.3_0.
 
 ** Setup
 
@@ -48,7 +48,7 @@
 
 ***** Macro: =define-emms-simple-player-mpv name types regex command &rest args=
 
-      This macro emulate =define-emms-simple-player=. See EMMS Manual [[https://www.gnu.org/software/emms/manual/Simple-Players.html#Simple-Players][11 Simple-Players]].
+      This macro emulates =define-emms-simple-player=. See EMMS Manual [[https://www.gnu.org/software/emms/manual/Simple-Players.html#Simple-Players][11 Simple-Players]].
 
 ***** Function: =emms-player-simple-mpv-add-to-converters player regexp types fn &optional appendp=
 
@@ -60,7 +60,7 @@
 
       Default value is =t=.
       If the variable is non-nil,
-      =emms-player-simple-mpv-volume-change= is used as =emms-volume-change-function= while a emms mpv player is running.
+      =emms-player-simple-mpv-volume-change= is used as =emms-volume-change-function= while an emms mpv player is running.
 
 ***** Some examples of defining specific emms simple players of mpv
 

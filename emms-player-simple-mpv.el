@@ -3,7 +3,7 @@
 ;; Copyright (C) 2015 momomo5717
 
 ;; Keywords: emms, mpv
-;; Version: 0.1.6
+;; Version: 0.1.7
 ;; Package-Requires: ((emacs "24") (cl-lib "0.5") (emms "4.0"))
 ;; URL: https://github.com/momomo5717/emms-player-simple-mpv
 
@@ -133,7 +133,7 @@
 (require 'tq)
 (require 'later-do)
 
-(defconst emms-player-simple-mpv-version "0.1.6")
+(defconst emms-player-simple-mpv-version "0.1.7")
 
 (defgroup emms-simple-player-mpv nil
   "An extension of emms-simple-player.el."
@@ -188,6 +188,8 @@
      (emms-player-set ,player-name 'get-media-title
                       (lambda (track) (file-name-nondirectory (emms-track-name track))))
      (emms-player-set ,player-name 'mpv-track-name-converters '())
+     (emms-player-set ,player-name 'mpv-start-process-function
+                      'emms-player-simple-mpv-default-start-process)
      (defun ,start (track)
        "Start the player process."
        (emms-player-simple-mpv-start track
@@ -427,6 +429,15 @@ FN takes track-name as an argument."
   (message "Failed to start mpv--tq. Check parameters or input form.\n%s%s\n%s%s"
            "    " (mapconcat #'identity  params " ") "    " input-form))
 
+(defun emms-player-simple-mpv-default-start-process
+    (cmdname params input-form _track)
+  "Default function for mpv-start-process-function."
+  (apply  #'start-process
+          emms-player-simple-process-name
+          nil
+          cmdname
+          `(,@params ,input-form)))
+
 ;;;###autoload
 (defun emms-player-simple-mpv-start (track player cmdname params)
   "Emulate `emms-player-simple-start' but the first arg."
@@ -443,11 +454,9 @@ FN takes track-name as an argument."
                       (funcall get-media-title track))
             ""))
          (process
-          (apply  #'start-process
-                  emms-player-simple-process-name
-                  nil
-                  cmdname
-                  `(,media-title ,input-socket ,@params ,input-form))))
+          (funcall (emms-player-get player 'mpv-start-process-function)
+                   cmdname `(,input-socket ,media-title ,@params)
+                   input-form track)))
     (set-process-sentinel process 'emms-player-simple-sentinel)
     (emms-player-started player)
     (setq emms-player-paused-p t)
