@@ -188,6 +188,8 @@
      (emms-player-set ,player-name 'get-media-title
                       (lambda (track) (file-name-nondirectory (emms-track-name track))))
      (emms-player-set ,player-name 'mpv-track-name-converters '())
+     (emms-player-set ,player-name 'mpv-start-process-function
+                      'emms-player-simple-mpv-default-start-process)
      (defun ,start (track)
        "Start the player process."
        (emms-player-simple-mpv-start track
@@ -427,6 +429,15 @@ FN takes track-name as an argument."
   (message "Failed to start mpv--tq. Check parameters or input form.\n%s%s\n%s%s"
            "    " (mapconcat #'identity  params " ") "    " input-form))
 
+(defun emms-player-simple-mpv-default-start-process
+    (cmdname params input-form _track)
+  "Default function for mpv-start-process-function."
+  (apply  #'start-process
+          emms-player-simple-process-name
+          nil
+          cmdname
+          `(,@params ,input-form)))
+
 ;;;###autoload
 (defun emms-player-simple-mpv-start (track player cmdname params)
   "Emulate `emms-player-simple-start' but the first arg."
@@ -443,11 +454,9 @@ FN takes track-name as an argument."
                       (funcall get-media-title track))
             ""))
          (process
-          (apply  #'start-process
-                  emms-player-simple-process-name
-                  nil
-                  cmdname
-                  `(,media-title ,input-socket ,@params ,input-form))))
+          (funcall (emms-player-get player 'mpv-start-process-function)
+                   cmdname `(,input-socket ,media-title ,@params)
+                   input-form track)))
     (set-process-sentinel process 'emms-player-simple-sentinel)
     (emms-player-started player)
     (setq emms-player-paused-p t)
