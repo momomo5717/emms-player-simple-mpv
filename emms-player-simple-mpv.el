@@ -29,6 +29,8 @@
 ;; Setup:
 ;;
 ;; (require 'emms-player-simple-mpv)
+;; ;; If you use other control functions,
+;; (require 'emms-player-simple-mpv-control-functions)
 ;;
 ;; ;; An example of setting
 ;; ;; `emms-player-mpv' is defined by `define-emms-simple-player-mpv'.
@@ -90,6 +92,8 @@
 ;;   f        Toggle fullscreen.
 ;;   ─────────────────────────────
 ;;   T        Toggle stay-on-top.
+;;   ─────────────────────────────
+;;   l        Set/clear A-B loop points.
 ;; -------------------------------------------------------------
 ;;
 ;; "
@@ -113,7 +117,7 @@
 ;;   ("p" emms-pause)
 ;;   ("SPC" emms-pause)
 ;;   ("q" (lambda () (interactive)
-;;          (when (y-or-n-p "Run emms-stop")
+;;          (when (y-or-n-p "emms-stop")
 ;;            (emms-stop))) :exit t)
 ;;   ("/" emms-volume-lower)
 ;;   ("*" emms-volume-raise)
@@ -121,7 +125,8 @@
 ;;   ("0" emms-volume-raise)
 ;;   ("m" emms-player-simple-mpv-mute)
 ;;   ("f" emms-player-simple-mpv-fullscreen)
-;;   ("T" emms-player-simple-mpv-ontop))
+;;   ("T" emms-player-simple-mpv-ontop)
+;;   ("l" emms-player-simple-mpv-ab-loop))
 ;;
 
 ;;; Code:
