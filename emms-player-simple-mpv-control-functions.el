@@ -272,6 +272,28 @@ Set playlist-pos to N."
   (emms-player-simple-mpv-speed-% 50))
 
 ;;;###autoload
+(defun emms-player-simple-mpv-loop-to (n)
+  "Set loop to N.
+If N is less than 1, set loop to \"inf\"."
+  (interactive "nmpv loop to : ")
+  (emms-player-simple-mpv-set_property
+   "loop" (cond ((< n 1) "inf")
+                ((= n 1) "no")
+                (t n))
+   :fn (lambda (v) (if (numberp v) (format "%s times" v) v))))
+
+;;;###autoload
+(defun emms-player-simple-mpv-loop-file-to (n)
+  "Set loop-file to N.
+If N is less than 1, set loop-file to \"inf\"."
+  (interactive "nmpv loop-file to : ")
+  (emms-player-simple-mpv-set_property
+   "loop-file" (cond ((< n 1) "inf")
+                     ((= n 1) "no")
+                     (t n))
+   :fn (lambda (v) (if (numberp v) (format "%s times" v) v))))
+
+;;;###autoload
 (defun emms-player-simple-mpv-ontop ()
   "Cycle ontop."
   (interactive)
