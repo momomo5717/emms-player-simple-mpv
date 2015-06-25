@@ -271,6 +271,43 @@ Set playlist-pos to N."
   (interactive)
   (emms-player-simple-mpv-speed-% 50))
 
+(defun emms-player-simple-mpv--ab-loop-1 ()
+  "Helper function for `emms-player-simple-mpv-ab-loop'."
+  (emms-player-simple-mpv-tq-enqueue
+   '("get_property" "ab-loop-a")
+   nil
+   (lambda (_ ans-ls)
+     (if (emms-player-simple-mpv-tq-success-p ans-ls)
+         (emms-player-simple-mpv-tq-enqueue
+          '("get_property" "ab-loop-b")
+          (emms-player-simple-mpv-tq-assq-v 'data ans-ls)
+          #'emms-player-simple-mpv-ab-loop-2)
+       (message "mpv ab-loop : success")))))
+
+(defun emms-player-simple-mpv-ab-loop-2 (loop-a ans-ls)
+  "Helper function for `emms-player-simple-mpv--ab-loop-1'."
+  (let ((loop-b (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+    (cond ((numberp loop-b)
+           (message "mpv ab-loop : point B %s"
+                    (emms-player-simple-mpv--time-string loop-b)))
+          ((numberp loop-a)
+           (message "mpv ab-loop : point A %s"
+                    (emms-player-simple-mpv--time-string loop-a)))
+          ((equal loop-a "no") (message "mpv ab-loop : clear"))
+          (t (message "mpv ab-loop : success")))))
+
+;;;###autoload
+(defun emms-player-simple-mpv-ab-loop ()
+  "Cycle ab-loop."
+  (interactive)
+  (emms-player-simple-mpv-tq-clear)
+  (emms-player-simple-mpv-tq-enqueue
+   '("ab_loop") nil
+   (lambda (_ ans-ls)
+     (if (emms-player-simple-mpv-tq-success-p ans-ls)
+         (emms-player-simple-mpv--ab-loop-1)
+       (message "mpv ab-loop : error")))))
+
 ;;;###autoload
 (defun emms-player-simple-mpv-loop-to (n)
   "Set loop to N.
