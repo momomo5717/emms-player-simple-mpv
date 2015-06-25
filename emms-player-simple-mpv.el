@@ -218,13 +218,11 @@
   " *emms-player-simple-mpv--tq-event*")
 
 (defvar emms-player-simple-mpv--socket
-  (make-temp-name
-   (expand-file-name "mpv--socket" temporary-file-directory)))
+  (expand-file-name (make-temp-name "mpv--socket") temporary-file-directory))
 
 (defun emms-player-simple-mpv--socket ()
   (setq emms-player-simple-mpv--socket
-        (make-temp-name
-         (expand-file-name "mpv--socket" temporary-file-directory))))
+        (expand-file-name (make-temp-name "mpv--socket") temporary-file-directory)))
 
 (defun emms-player-simple-mpv--tq-create ()
   (tq-create (make-network-process
