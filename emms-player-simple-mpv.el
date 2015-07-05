@@ -22,111 +22,37 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-
+;;
 ;; This is an extension of emms-player-simple.el for mpv JSON IPC.
-;; It provides macro and functions to define a player of mpv.
-
+;; It provides macros and functions for defining emms simple players of mpv.
+;; emms-player-simple-mpv-control-functions.el provides other functions to control mpv.
+;;
+;; Further information is available from:
+;; https://github.com/momomo5717/emms-player-simple-mpv
+;;
+;;
 ;; Setup:
 ;;
 ;; (require 'emms-player-simple-mpv)
 ;; ;; If you use other control functions,
 ;; (require 'emms-player-simple-mpv-control-functions)
 ;;
-;; ;; An example of setting
-;; ;; `emms-player-mpv' is defined by `define-emms-simple-player-mpv'.
-;; (define-emms-simple-player-mpv mpv '(file url streamlist playlist)
+;; Usage:
+;;
+;; ;; An example of setting like emms-player-mplayer.el
+;; ;; `emms-player-my-mpv' is defined in this case.
+;; (define-emms-simple-player-mpv my-mpv '(file url streamlist playlist)
 ;;     (concat "\\`\\(http[s]?\\|mms\\)://\\|"
 ;;             (apply #'emms-player-simple-regexp
-;;                    "pls"
+;;                    "aac" "pls" "m3u"
 ;;                    emms-player-base-format-list))
 ;;     "mpv" "--no-terminal" "--force-window=no" "--audio-display=no")
 ;;
 ;; (emms-player-simple-mpv-add-to-converters
-;;  'emms-player-mpv "." '(playlist)
+;;  'emms-player-my-mpv "." '(playlist)
 ;;  (lambda (track-name) (format "--playlist=%s" track-name)))
 ;;
-;; (add-to-list 'emms-player-list 'emms-player-mpv)
-;;
-
-;;
-;; ;; If you use hydra.el ( https://github.com/abo-abo/hydra ),
-;; ;; the following example could be useful for playing sound.
-;; ;; This example emulates default key bindings of mpv player.
-;; (require 'hydra)
-;; (require 'emms-player-simple-mpv-control-functions)
-;;
-;; ;; (global-set-key (kbd "<f2> m") 'emms-player-simple-mpv-hydra/body)
-;; (defhydra emms-player-simple-mpv-hydra
-;;   (:foreign-keys warn :hint nil)
-;;   "
-;;   Keyboard Control for emms simple player of mpv
-;; -------------------------------------------------------------
-;;   _Q_        Quit emms-player-simple-mpv-hydra.
-;;   ─────────────────────────────
-;;   <left> and <right>
-;;            Seek backward/forward 5 seconds.
-;;   S-<left> and S-<right>
-;;            Seek backward/forward 1 seconds.
-;;   <down> and <up>
-;;            Seek backward/forward 1 minute.
-;;   S-<down> and S-<upt>
-;;            Seek backward/forward 5 seconds.
-;;   ─────────────────────────────
-;;   \[ and \]  Decrease/increase current playback speed by 10 %%%%.
-;;   \{ and \}  Halve/double current playback speed.
-;;   <backspace>
-;;            Reset playback speed to normal.
-;;   ─────────────────────────────
-;;   < and >  Go backward/forward in the playlist.
-;;   <retrun> Go forward in the playlist.
-;;   ─────────────────────────────
-;;   p / SPC  Pause (pressing again unpauses).
-;;   ─────────────────────────────
-;;   q        Stop playing and quit.
-;;   ─────────────────────────────
-;;   / and *  Decrease/increase volume.
-;;   9 and 0  Decrease/increase volume.
-;;   ─────────────────────────────
-;;   m        Mute sound.
-;;   ─────────────────────────────
-;;   f        Toggle fullscreen.
-;;   ─────────────────────────────
-;;   T        Toggle stay-on-top.
-;;   ─────────────────────────────
-;;   l        Set/clear A-B loop points.
-;; -------------------------------------------------------------
-;;
-;; "
-;;   ("Q" nil)
-;;   ("<left>"    (lambda () (interactive) (emms-seek -5)))
-;;   ("S-<left>"  (lambda () (interactive) (emms-seek -1)))
-;;   ("<down>"    (lambda () (interactive) (emms-seek -60)))
-;;   ("S-<down>"  (lambda () (interactive) (emms-seek -5)))
-;;   ("<right>"   (lambda () (interactive) (emms-seek 5)))
-;;   ("S-<right>" (lambda () (interactive) (emms-seek 1)))
-;;   ("<up>"      (lambda () (interactive) (emms-seek 60)))
-;;   ("S-<up>"    (lambda () (interactive) (emms-seek 5)))
-;;   ("["  emms-player-simple-mpv-speed-decrease)
-;;   ("]"  emms-player-simple-mpv-speed-increase)
-;;   ("{"  emms-player-simple-mpv-speed-halve)
-;;   ("}"  emms-player-simple-mpv-speed-double)
-;;   ("<backspace>" emms-player-simple-mpv-speed-normal)
-;;   ("<" emms-player-simple-mpv-playlist-prev)
-;;   (">" emms-player-simple-mpv-playlist-next)
-;;   ("<return>" emms-player-simple-mpv-playlist-next)
-;;   ("p" emms-pause)
-;;   ("SPC" emms-pause)
-;;   ("q" (lambda () (interactive)
-;;          (when (y-or-n-p "emms-stop")
-;;            (emms-stop))) :exit t)
-;;   ("/" emms-volume-lower)
-;;   ("*" emms-volume-raise)
-;;   ("9" emms-volume-lower)
-;;   ("0" emms-volume-raise)
-;;   ("m" emms-player-simple-mpv-mute)
-;;   ("f" emms-player-simple-mpv-fullscreen)
-;;   ("T" emms-player-simple-mpv-ontop)
-;;   ("l" emms-player-simple-mpv-ab-loop))
+;; (add-to-list 'emms-player-list 'emms-player-my-mpv)
 ;;
 
 ;;; Code:
