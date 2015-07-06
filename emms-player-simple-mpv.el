@@ -605,7 +605,6 @@ For a track which does not have length property."
 ;;;###autoload
 (defun emms-player-simple-mpv-seek (sec)
   "Seek by SEC."
-  (emms-player-simple-mpv-tq-clear)
   (emms-player-simple-mpv-tq-enqueue
    '("get_property" "length")
    sec
@@ -648,7 +647,6 @@ ANS-LS includes data value."
 ;;;###autoload
 (defun emms-player-simple-mpv-volume-change (v)
   "Change volume by V."
-  (emms-player-simple-mpv-tq-clear)
   (emms-player-simple-mpv-tq-enqueue
    (list "get_property" "volume")
    v 'emms-player-simple-mpv--volume-change-1))
