@@ -22,111 +22,37 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-
+;;
 ;; This is an extension of emms-player-simple.el for mpv JSON IPC.
-;; It provides macro and functions to define a player of mpv.
-
+;; It provides macros and functions for defining emms simple players of mpv.
+;; emms-player-simple-mpv-control-functions.el provides other functions to control mpv.
+;;
+;; Further information is available from:
+;; https://github.com/momomo5717/emms-player-simple-mpv
+;;
+;;
 ;; Setup:
 ;;
 ;; (require 'emms-player-simple-mpv)
 ;; ;; If you use other control functions,
 ;; (require 'emms-player-simple-mpv-control-functions)
 ;;
-;; ;; An example of setting
-;; ;; `emms-player-mpv' is defined by `define-emms-simple-player-mpv'.
-;; (define-emms-simple-player-mpv mpv '(file url streamlist playlist)
+;; Usage:
+;;
+;; ;; An example of setting like emms-player-mplayer.el
+;; ;; `emms-player-my-mpv' is defined in this case.
+;; (define-emms-simple-player-mpv my-mpv '(file url streamlist playlist)
 ;;     (concat "\\`\\(http[s]?\\|mms\\)://\\|"
 ;;             (apply #'emms-player-simple-regexp
-;;                    "pls"
+;;                    "aac" "pls" "m3u"
 ;;                    emms-player-base-format-list))
 ;;     "mpv" "--no-terminal" "--force-window=no" "--audio-display=no")
 ;;
 ;; (emms-player-simple-mpv-add-to-converters
-;;  'emms-player-mpv "." '(playlist)
+;;  'emms-player-my-mpv "." '(playlist)
 ;;  (lambda (track-name) (format "--playlist=%s" track-name)))
 ;;
-;; (add-to-list 'emms-player-list 'emms-player-mpv)
-;;
-
-;;
-;; ;; If you use hydra.el ( https://github.com/abo-abo/hydra ),
-;; ;; the following example could be useful for playing sound.
-;; ;; This example emulates default key bindings of mpv player.
-;; (require 'hydra)
-;; (require 'emms-player-simple-mpv-control-functions)
-;;
-;; ;; (global-set-key (kbd "<f2> m") 'emms-player-simple-mpv-hydra/body)
-;; (defhydra emms-player-simple-mpv-hydra
-;;   (:foreign-keys warn :hint nil)
-;;   "
-;;   Keyboard Control for emms simple player of mpv
-;; -------------------------------------------------------------
-;;   _Q_        Quit emms-player-simple-mpv-hydra.
-;;   ─────────────────────────────
-;;   <left> and <right>
-;;            Seek backward/forward 5 seconds.
-;;   S-<left> and S-<right>
-;;            Seek backward/forward 1 seconds.
-;;   <down> and <up>
-;;            Seek backward/forward 1 minute.
-;;   S-<down> and S-<upt>
-;;            Seek backward/forward 5 seconds.
-;;   ─────────────────────────────
-;;   \[ and \]  Decrease/increase current playback speed by 10 %%%%.
-;;   \{ and \}  Halve/double current playback speed.
-;;   <backspace>
-;;            Reset playback speed to normal.
-;;   ─────────────────────────────
-;;   < and >  Go backward/forward in the playlist.
-;;   <retrun> Go forward in the playlist.
-;;   ─────────────────────────────
-;;   p / SPC  Pause (pressing again unpauses).
-;;   ─────────────────────────────
-;;   q        Stop playing and quit.
-;;   ─────────────────────────────
-;;   / and *  Decrease/increase volume.
-;;   9 and 0  Decrease/increase volume.
-;;   ─────────────────────────────
-;;   m        Mute sound.
-;;   ─────────────────────────────
-;;   f        Toggle fullscreen.
-;;   ─────────────────────────────
-;;   T        Toggle stay-on-top.
-;;   ─────────────────────────────
-;;   l        Set/clear A-B loop points.
-;; -------------------------------------------------------------
-;;
-;; "
-;;   ("Q" nil)
-;;   ("<left>"    (lambda () (interactive) (emms-seek -5)))
-;;   ("S-<left>"  (lambda () (interactive) (emms-seek -1)))
-;;   ("<down>"    (lambda () (interactive) (emms-seek -60)))
-;;   ("S-<down>"  (lambda () (interactive) (emms-seek -5)))
-;;   ("<right>"   (lambda () (interactive) (emms-seek 5)))
-;;   ("S-<right>" (lambda () (interactive) (emms-seek 1)))
-;;   ("<up>"      (lambda () (interactive) (emms-seek 60)))
-;;   ("S-<up>"    (lambda () (interactive) (emms-seek 5)))
-;;   ("["  emms-player-simple-mpv-speed-decrease)
-;;   ("]"  emms-player-simple-mpv-speed-increase)
-;;   ("{"  emms-player-simple-mpv-speed-halve)
-;;   ("}"  emms-player-simple-mpv-speed-double)
-;;   ("<backspace>" emms-player-simple-mpv-speed-normal)
-;;   ("<" emms-player-simple-mpv-playlist-prev)
-;;   (">" emms-player-simple-mpv-playlist-next)
-;;   ("<return>" emms-player-simple-mpv-playlist-next)
-;;   ("p" emms-pause)
-;;   ("SPC" emms-pause)
-;;   ("q" (lambda () (interactive)
-;;          (when (y-or-n-p "emms-stop")
-;;            (emms-stop))) :exit t)
-;;   ("/" emms-volume-lower)
-;;   ("*" emms-volume-raise)
-;;   ("9" emms-volume-lower)
-;;   ("0" emms-volume-raise)
-;;   ("m" emms-player-simple-mpv-mute)
-;;   ("f" emms-player-simple-mpv-fullscreen)
-;;   ("T" emms-player-simple-mpv-ontop)
-;;   ("l" emms-player-simple-mpv-ab-loop))
+;; (add-to-list 'emms-player-list 'emms-player-my-mpv)
 ;;
 
 ;;; Code:
@@ -154,6 +80,26 @@
   "If non-nil, display error message when failed to start tq process."
   :group 'emms-simple-player-mpv
   :type 'boolean)
+
+(defcustom emms-player-simple-mpv-tq-event-pause-hook nil
+  "Normal hook run when TQ process receives \"pause\" from mpv."
+  :group 'emms-simple-player-mpv
+  :type 'hook)
+
+(defcustom emms-player-simple-mpv-tq-event-unpause-hook nil
+  "Normal hook run when TQ process receives \"unpause\" from mpv."
+  :group 'emms-simple-player-mpv
+  :type 'hook)
+
+(defcustom emms-player-simple-mpv-tq-event-playback-restart-hook nil
+  "Normal hook run when TQ process receives \"playback-restart\" from mpv."
+  :group 'emms-simple-player-mpv
+  :type 'hook)
+
+(defcustom emms-player-simple-mpv-tq-event-metadata-update-hook nil
+  "Normal hook run when TQ process receives \"metadata-update\" from mpv."
+  :group 'emms-simple-player-mpv
+  :type 'hook)
 
 (defvar emms-player-simple-mpv-default-volume-function emms-volume-change-function
   "Set emms-volume-change-function for buckup.")
@@ -219,9 +165,6 @@
 (defvar emms-player-simple-mpv-tq-process-name
   "emms-player-simple-mpv-tq-process")
 
-(defvar emms-player-simple-mpv--tq-event-buffer-name
-  " *emms-player-simple-mpv--tq-event*")
-
 (defvar emms-player-simple-mpv--socket
   (expand-file-name (make-temp-name "mpv--socket") temporary-file-directory))
 
@@ -240,9 +183,7 @@
     (tq-close emms-player-simple-mpv--tq)
     (setq emms-player-simple-mpv--tq nil))
   (when (file-exists-p emms-player-simple-mpv--socket)
-    (ignore-errors (delete-file emms-player-simple-mpv--socket)))
-  (when (buffer-live-p (get-buffer emms-player-simple-mpv--tq-event-buffer-name))
-    (kill-buffer emms-player-simple-mpv--tq-event-buffer-name)))
+    (ignore-errors (delete-file emms-player-simple-mpv--socket))))
 
 (add-hook 'emms-player-stopped-hook  'emms-player-simple-mpv--tq-close)
 (add-hook 'emms-player-finished-hook 'emms-player-simple-mpv--tq-close)
@@ -262,62 +203,79 @@
 (defun emms-player-simple-mpv--tq-process-buffer (tq)
   "Check TQ's buffer at the head of the queue.
 See tq.el."
-  (let ((buffer (tq-buffer tq))
-        (buffer-tq-event
-         (get-buffer-create emms-player-simple-mpv--tq-event-buffer-name)))
-    (while (and (buffer-live-p buffer) (set-buffer buffer)
-                (> (buffer-size) 0))
-      (if (tq-queue-empty tq)
-          (let ((buf buffer-tq-event))
-            (copy-to-buffer buf (point-min) (point-max))
-            (delete-region (point-min) (point))
-            (ignore-errors (emms-player-simple-mpv--tq-event-action)))
-        (goto-char (point-min))
-        (let ((answer-ls (cl-loop with ls
-                                  for obj = (ignore-errors (json-read))
-                                  when (null obj) return (nreverse ls)
-                                  do (push obj ls)))
-              (fn (tq-queue-head-fn tq))
-              (closure (tq-queue-head-closure tq)))
-          (delete-region (point-min) (point-max))
-          (tq-queue-pop tq)
-          (ignore-errors (funcall fn closure answer-ls)))))))
+  (let ((buffer (tq-buffer tq)))
+    (while (and (buffer-live-p buffer) (set-buffer buffer) (> (buffer-size) 0))
+      (goto-char (point-min))
+      (let* ((answer-ls (ignore-errors (json-read)))
+             (point (point))
+             (fn (tq-queue-head-fn tq))
+             (closure (tq-queue-head-closure tq))
+             (event (emms-player-simple-mpv-tq-assq-v 'event answer-ls)))
+        (delete-region (point-min)
+                       (if (or answer-ls (eobp) (ignore-errors (json-read)))
+                           point (point-max)))
+        (when answer-ls
+          (if event (emms-player-simple-mpv--tq-event-action event)
+            (when fn
+              (unwind-protect
+                  (ignore-errors (funcall fn closure answer-ls))
+                (tq-queue-pop tq)))))))))
 
-(defun emms-player-simple-mpv--tq-event-action ()
-  "Action for event response from mpv."
-  (let ((buf (get-buffer emms-player-simple-mpv--tq-event-buffer-name))
-        ans-ls)
-    (when (buffer-live-p buf)
-      (setq ans-ls
-            (with-current-buffer buf
-              (goto-char (point-min))
-              (cl-loop with ls
-                       for obj = (ignore-errors (json-read))
-                       when (null obj) return (nreverse ls)
-                       do (push obj ls))))
-      (with-current-buffer buf (erase-buffer))
-      (cl-loop for ans in ans-ls
-               for event = (cdr (assq 'event ans))
-               when event do
-               (cond
-                ((equal event "pause")
-                 (setq emms-player-paused-p t)
-                 (run-hooks 'emms-player-paused-hook))
-                ((equal event "unpause")
-                 (setq emms-player-paused-p nil)
-                 (run-hooks 'emms-player-paused-hook))
-                ((equal event "playback-restart")
-                 (emms-player-simple-mpv-tq-enqueue
-                  '("get_property" "pause")
-                  nil
-                  (lambda (_ ans-ls)
-                    (when (emms-player-simple-mpv-tq-success-p ans-ls)
-                      (let ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
-                        (when data
-                          (if (eq data t)
-                              (setq emms-player-paused-p t)
-                            (setq emms-player-paused-p nil))
-                          (run-hooks 'emms-player-paused-hook))))))))))))
+(defun emms-player-simple-mpv--tq-event-action (event)
+  "Action for the EVENT from mpv."
+  (when (stringp event)
+   (cond
+    ((string= event "pause")
+     (emms-player-simple-mpv--tq-event-action-pause))
+    ((string= event "unpause")
+     (emms-player-simple-mpv--tq-event-action-unpause))
+    ((string= event "playback-restart")
+     (emms-player-simple-mpv--tq-event-action-playback-restart))
+    ((string= event "metadata-update")
+     (emms-player-simple-mpv--tq-event-action-metadata-update)))))
+
+(defun emms-player-simple-mpv--tq-event-action-pause ()
+  "Event action for pause."
+  (setq emms-player-paused-p t)
+  (run-hooks 'emms-player-paused-hook)
+  (condition-case err
+      (run-hooks 'emms-player-simple-mpv-tq-event-pause-hook)
+    (error (message "Error : mpv evet hook for pause : %s"
+                    (error-message-string err)))))
+
+(defun emms-player-simple-mpv--tq-event-action-unpause ()
+  "Event action for unpause."
+  (setq emms-player-paused-p nil)
+  (run-hooks 'emms-player-paused-hook)
+  (condition-case err
+      (run-hooks 'emms-player-simple-mpv-tq-event-unpause-hook)
+    (error (message "Error : mpv evet hook for unpause : %s"
+                    (error-message-string err)))))
+
+(defun emms-player-simple-mpv--tq-event-action-playback-restart ()
+  "Event action for playback-restart."
+  (emms-player-simple-mpv-tq-enqueue
+   '("get_property" "pause")
+   nil
+   (lambda (_ ans-ls)
+     (when (emms-player-simple-mpv-tq-success-p ans-ls)
+       (let ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+         (when data
+           (if (eq data t)
+               (setq emms-player-paused-p t)
+             (setq emms-player-paused-p nil))
+           (run-hooks 'emms-player-paused-hook))))
+     (condition-case err
+         (run-hooks 'emms-player-simple-mpv-tq-event-playback-restart-hook)
+       (error (message "Error : mpv evet hook for playback-restart : %s"
+                       (error-message-string err)))))))
+
+(defun emms-player-simple-mpv--tq-event-action-metadata-update ()
+  "Event action for metadata-update."
+  (condition-case err
+         (run-hooks 'emms-player-simple-mpv-tq-event-metadata-update-hook)
+       (error (message "Error : mpv evet hook for metadata-update : %s"
+                       (error-message-string err)))))
 
 (defun emms-player-simple-mpv-playing-p ()
   "Return t when `emms-player-simple-mpv--tq' process is open."
@@ -327,10 +285,14 @@ See tq.el."
 
 ;;;###autoload
 (defun emms-player-simple-mpv-tq-clear ()
-  "Clear old messages if it remains in tq."
-  (let ((tq emms-player-simple-mpv--tq))
-    (while (not (tq-queue-empty tq))
-      (tq-queue-pop tq))))
+  "Clear tq-enque if it remains."
+  (interactive)
+  (when emms-player-simple-mpv--tq
+   (let ((buffer (tq-buffer emms-player-simple-mpv--tq)))
+     (setcar emms-player-simple-mpv--tq nil)
+     (when (buffer-live-p buffer)
+       (with-current-buffer buffer
+         (delete-region (point-min) (point-max)))))))
 
 (defun emms-player-simple-mpv--tq-make-command (com &rest params)
   "Build JSON command from COM and PARAMS."
@@ -569,7 +531,6 @@ For a track which does not have length property."
 ;;;###autoload
 (defun emms-player-simple-mpv-seek (sec)
   "Seek by SEC."
-  (emms-player-simple-mpv-tq-clear)
   (emms-player-simple-mpv-tq-enqueue
    '("get_property" "length")
    sec
@@ -612,7 +573,6 @@ ANS-LS includes data value."
 ;;;###autoload
 (defun emms-player-simple-mpv-volume-change (v)
   "Change volume by V."
-  (emms-player-simple-mpv-tq-clear)
   (emms-player-simple-mpv-tq-enqueue
    (list "get_property" "volume")
    v 'emms-player-simple-mpv--volume-change-1))
