@@ -8,13 +8,22 @@
 
   emms-player-simple-mpv-control-functions.el provides other functions to control mpv.
 
+  + [[#requirements][Requirements]]
+  + [[#setup][Setup]]
+  + [[#usage][Usage]]
+    + [[#customization][Customization]]
+    + [[#an-example-of-setting-for-tq-event-hooks][An example of setting for TQ event hooks]]
+    + [[#an-example-of-setting-for-hydra--httpsgithubcomabo-abohydra-][An example of setting for hydra]]
+    + [[#some-examples-of-defining-specific-emms-simple-players-of-mpv][Some examples of defining specific emms simple players of mpv]]
+  + [[#references][References]]
+
 ** Requirements
 
    + GNU Emacs 24 or later
    + EMMS 4.0 or later
    + mpv v0.7 or later ( [[https://github.com/mpv-player/mpv]] )
 
-   Tested with GNU Emacs 24.5.1 (emacs-mac-app @5.7_0), EMMS 4.0, mpv @0.8.3_3.
+   Tested with GNU Emacs 24.5.1 (emacs-mac-app @5.7_0), EMMS 4.0, mpv @0.9.2_0.
 
 ** Setup
 
@@ -29,45 +38,105 @@
 
    #+BEGIN_SRC emacs-lisp
      ;; An example of setting like emms-player-mplayer.el
-     ;; `emms-player-mpv' is defined by `define-emms-simple-player-mpv'.
-     (define-emms-simple-player-mpv mpv '(file url streamlist playlist)
+     ;; `emms-player-my-mpv' is defined in this case.
+     (define-emms-simple-player-mpv my-mpv '(file url streamlist playlist)
          (concat "\\`\\(http[s]?\\|mms\\)://\\|"
                  (apply #'emms-player-simple-regexp
-                        "pls"
+                        "aac" "pls" "m3u"
                         emms-player-base-format-list))
          "mpv" "--no-terminal" "--force-window=no" "--audio-display=no")
 
      (emms-player-simple-mpv-add-to-converters
-      'emms-player-mpv "." '(playlist)
+      'emms-player-my-mpv "." '(playlist)
       (lambda (track-name) (format "--playlist=%s" track-name)))
 
-     (add-to-list 'emms-player-list 'emms-player-mpv)
+     (add-to-list 'emms-player-list 'emms-player-my-mpv)
    #+END_SRC
 
-***** Macro: =define-emms-simple-player-mpv name types regex command &rest args=
+**** Customization
 
-      This macro emulates =define-emms-simple-player=. See EMMS Manual [[https://www.gnu.org/software/emms/manual/Simple-Players.html#Simple-Players][11 Simple-Players]].
+***** Macro: =define-emms-simple-player-mpv= /name/ /types/ /regex/ /command/ /&rest/ /args/
 
-***** Function: =emms-player-simple-mpv-add-to-converters player regexp types fn &optional appendp=
+      This macro emulates =define-emms-simple-player=. See EMMS Manual [[https://www.gnu.org/software/emms/manual/Simple-Players.html#Simple-Players][11 Simple Players]].
 
-      This function adds =(list regexp types fn)= to player's =mpv-track-name-converters=.
-      =fn= converts track name to input form
+***** Function: =emms-player-simple-mpv-add-to-converters= /player/ /regexp/ /types/ /fn/ /&optional/ /appendp/
+
+      This function adds a list (/regexp/ /types/ /fn/) to player's =mpv-track-name-converters=.
+      /fn/ converts track name to input form
       when mpv needs specific format such as ffplay format for playing some protocols.
 
 ***** User Option: =emms-player-simple-mpv-use-volume-change-function-p=
 
       Default value is =t=.
       If the variable is non-nil,
-      =emms-player-simple-mpv-volume-change= is used as =emms-volume-change-function= while an emms mpv player is running.
+      =emms-player-simple-mpv-volume-change= is used as =emms-volume-change-function= while an emms simple player of mpv is running.
 
-***** Some examples of defining specific emms simple players of mpv
+***** User Option: =emms-player-simple-mpv-tq-event-pause-hook=
 
-      + [[https://github.com/momomo5717/emms-player-mpv-jp-radios]]
+      Normal hook run when TQ process receives "pause" from mpv.
+
+***** User Option: =emms-player-simple-mpv-tq-event-unpause-hook=
+
+      Normal hook run when TQ process receives "unpause" from mpv.
+
+***** User Option: =emms-player-simple-mpv-tq-event-playback-restart-hook=
+
+      Normal hook run when TQ process receives "playback-restart" from mpv.
+
+***** User Option: =emms-player-simple-mpv-tq-event-metadata-update-hook=
+
+      Normal hook run when TQ process receives "metadata-update" from mpv.
+
+**** An example of setting for TQ event hooks
+
+     #+BEGIN_SRC emacs-lisp
+       (require 'emms-mode-line)
+       (require 'emms-playing-time)
+
+       (defun emms-player-simple-mpv--reset-playing-time-display-timer ()
+         "Reset `emms-playing-time'."
+         (emms-player-simple-mpv-tq-enqueue
+          '("get_property" "time-pos") nil
+          (lambda (_ ans-ls)
+            (let ((time (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+              (when (numberp time)
+                (when emms-playing-time-display-timer
+                  (emms-cancel-timer emms-playing-time-display-timer)
+                  (setq emms-playing-time-display-timer nil))
+                (setq emms-playing-time (1- (floor time)))
+                (emms-playing-time-display)
+                (force-mode-line-update t)
+                (unless emms-player-paused-p
+                  (setq emms-playing-time-display-timer
+                        (run-at-time (- 1.0 (- time (ffloor time)))
+                                     1 'emms-playing-time-display))))))))
+
+       (add-hook 'emms-player-simple-mpv-tq-event-unpause-hook
+                 'emms-player-simple-mpv--reset-playing-time-display-timer)
+
+       (add-hook 'emms-player-simple-mpv-tq-event-playback-restart-hook
+                 'emms-player-simple-mpv--reset-playing-time-display-timer)
+
+       (defun emms-player-simple-mpv--set-current-playlist-filename
+           "Set the current playlist's filenam to `emms-mode-line-string'."
+         (when (eq (emms-track-type (emms-playlist-current-selected-track))
+                   'playlist)
+           (emms-player-simple-mpv-tq-enqueue
+            '("get_property" "filename") nil
+            (lambda (_ ans-ls)
+              (let ((filename (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+                (when (stringp filename)
+                  (setq emms-mode-line-string
+                        (format emms-mode-line-format filename))
+                  (force-mode-line-update t)))))))
+
+       (add-hook 'emms-player-simple-mpv-tq-event-metadata-update-hook
+                 'emms-player-simple-mpv--set-current-playlist-filename)
+     #+END_SRC
 
 **** An example of setting for hydra ( [[https://github.com/abo-abo/hydra]] )
 
-     If you use hydra.el, the following example could be useful for playing sound.
-     This example emulates default key bindings of mpv player.
+     This emulates default key bindings of mpv player.
 
      #+BEGIN_SRC emacs-lisp
        (require 'hydra)
@@ -146,6 +215,10 @@
          ("T" emms-player-simple-mpv-ontop)
          ("l" emms-player-simple-mpv-ab-loop))
      #+END_SRC
+
+**** Some examples of defining specific emms simple players of mpv
+
+     + [[https://github.com/momomo5717/emms-player-mpv-jp-radios]]
 
 ** References
 

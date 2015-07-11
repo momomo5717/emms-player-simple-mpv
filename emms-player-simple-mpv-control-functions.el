@@ -28,7 +28,6 @@
 ;;;###autoload
 (defun emms-player-simple-mpv-cycle (property)
   "Cycle PROPERTY."
-  (emms-player-simple-mpv-tq-clear)
   (emms-player-simple-mpv-tq-enqueue
    (list "cycle" property)
    property
@@ -127,21 +126,17 @@
 (defmacro emms-player-simple-mpv--playlist-change-1 (str)
   "Helper macro for emms-player-simple-mpv--playlist-next/prev."
   (let ((n (if (string= str "next") 1  -1)))
-    `(progn
-       (emms-player-simple-mpv-tq-clear)
-       (emms-player-simple-mpv-tq-enqueue
-        '("get_property" "playlist-pos")
-        nil
-        (lambda (_ ans-ls)
-          (if (emms-player-simple-mpv-tq-success-p ans-ls)
-              (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
-                     (form (format "mpv playlist_%s position %s : %%s"
-                                   ,str (+ data ,n))))
-                (emms-player-simple-mpv-tq-enqueue
-                 '(,(format "playlist_%s" str))
-                 nil
-                 (emms-player-simple-mpv-tq-error-message form)))
-            (message ,(format "mpv playlist_%s : error" str))))))))
+    `(emms-player-simple-mpv-tq-enqueue
+      '("get_property" "playlist-pos") nil
+      (lambda (_ ans-ls)
+        (if (emms-player-simple-mpv-tq-success-p ans-ls)
+            (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+                   (form (format "mpv playlist_%s position %s : %%s"
+                                 ,str (+ data ,n))))
+              (emms-player-simple-mpv-tq-enqueue
+               '(,(format "playlist_%s" str)) nil
+               (emms-player-simple-mpv-tq-error-message form)))
+          (message ,(format "mpv playlist_%s : error" str)))))))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-playlist-next ()
@@ -178,7 +173,6 @@ Set playlist-pos to N."
 (defun emms-player-simple-mpv-playlist-to (&optional n)
   "Go to the Nth entry on the playlist."
   (interactive)
-  (emms-player-simple-mpv-tq-clear)
   (if (called-interactively-p 'any)
       (emms-player-simple-mpv--playlist-to-2)
     (emms-player-simple-mpv--playlist-to-1 n)))
@@ -226,7 +220,6 @@ Set playlist-pos to N."
 (defun emms-player-simple-mpv-speed (v)
   "Change speed by V."
   (interactive "nmpv speed : ")
-  (emms-player-simple-mpv-tq-clear)
   (emms-player-simple-mpv-tq-enqueue
    (list "get_property" "speed")
    v 'emms-player-simple-mpv--speed-1))
@@ -242,7 +235,6 @@ Set playlist-pos to N."
 ;;;###autoload
 (defun emms-player-simple-mpv-speed-% (n)
   "N % times speed."
-  (emms-player-simple-mpv-tq-clear)
   (emms-player-simple-mpv-tq-enqueue
    (list "get_property" "speed")
    n 'emms-player-simple-mpv--speed-n%))
@@ -300,7 +292,6 @@ Set playlist-pos to N."
 (defun emms-player-simple-mpv-ab-loop ()
   "Cycle ab-loop."
   (interactive)
-  (emms-player-simple-mpv-tq-clear)
   (emms-player-simple-mpv-tq-enqueue
    '("ab_loop") nil
    (lambda (_ ans-ls)
