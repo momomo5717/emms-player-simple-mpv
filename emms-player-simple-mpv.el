@@ -3,7 +3,7 @@
 ;; Copyright (C) 2015 momomo5717
 
 ;; Keywords: emms, mpv
-;; Version: 0.2.0
+;; Version: 0.2.1
 ;; Package-Requires: ((emacs "24") (cl-lib "0.5") (emms "4.0"))
 ;; URL: https://github.com/momomo5717/emms-player-simple-mpv
 
@@ -30,6 +30,11 @@
 ;; Further information is available from:
 ;; https://github.com/momomo5717/emms-player-simple-mpv
 ;;
+;;
+;; Other Requirements:
+;;
+;;   + mpv v0.7 or later
+;;   + Unix Sockets
 ;;
 ;; Setup:
 ;;
@@ -64,7 +69,7 @@
 (require 'tq)
 (require 'later-do)
 
-(defconst emms-player-simple-mpv-version "0.2.0")
+(defconst emms-player-simple-mpv-version "0.2.1")
 
 (defgroup emms-simple-player-mpv nil
   "An extension of emms-simple-player.el."
@@ -136,8 +141,6 @@
      (emms-player-set ,player-name 'resume  'emms-player-simple-mpv-unpause)
      (emms-player-set ,player-name 'seek    'emms-player-simple-mpv-seek)
      (emms-player-set ,player-name 'seek-to 'emms-player-simple-mpv-seek-to)
-     (emms-player-set ,player-name 'get-media-title
-                      (lambda (track) (file-name-nondirectory (emms-track-name track))))
      (emms-player-set ,player-name 'mpv-track-name-converters '())
      (emms-player-set ,player-name 'mpv-start-process-function
                       'emms-player-simple-mpv-default-start-process)
@@ -412,15 +415,9 @@ FN takes track-name as an argument."
          (input-form
           (emms-player-simple-mpv--track-to-input-form
            track (emms-player-get player 'mpv-track-name-converters)))
-         (get-media-title (emms-player-get player 'get-media-title))
-         (media-title
-          (if get-media-title
-              (format "--media-title=%s"
-                      (funcall get-media-title track))
-            ""))
          (process
           (funcall (emms-player-get player 'mpv-start-process-function)
-                   cmdname `(,input-socket ,media-title ,@params)
+                   cmdname `(,input-socket ,@params)
                    input-form track)))
     (set-process-sentinel process 'emms-player-simple-sentinel)
     (emms-player-started player)
