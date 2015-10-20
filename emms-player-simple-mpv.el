@@ -3,7 +3,7 @@
 ;; Copyright (C) 2015 momomo5717
 
 ;; Keywords: emms, mpv
-;; Version: 0.2.1
+;; Version: 0.3.0
 ;; Package-Requires: ((emacs "24") (cl-lib "0.5") (emms "4.0"))
 ;; URL: https://github.com/momomo5717/emms-player-simple-mpv
 
@@ -59,6 +59,11 @@
 ;;
 ;; (add-to-list 'emms-player-list 'emms-player-my-mpv)
 ;;
+;; The following setting examples are available:
+;;
+;;   + emms-player-simple-mpv-e.g.time-display.el
+;;   + emms-player-simple-mpv-e.g.playlist-fname.el
+;;   + emms-player-simple-mpv-e.g.hydra.el
 
 ;;; Code:
 
@@ -69,7 +74,7 @@
 (require 'tq)
 (require 'later-do)
 
-(defconst emms-player-simple-mpv-version "0.2.1")
+(defconst emms-player-simple-mpv-version "0.3.0")
 
 (defgroup emms-simple-player-mpv nil
   "An extension of emms-simple-player.el."
@@ -80,6 +85,9 @@
   "If non-nil, `emms-player-simple-mpv-volume-change' is used as `emms-volume-change-function'."
   :group 'emms-simple-player-mpv
   :type 'boolean)
+
+(defvar emms-player-simple-mpv-default-volume-function emms-volume-change-function
+  "Set emms-volume-change-function for buckup.")
 
 (defcustom emms-player-simple-mpv-use-start-tq-error-message-p t
   "If non-nil, display error message when failed to start tq process."
@@ -101,13 +109,89 @@
   :group 'emms-simple-player-mpv
   :type 'hook)
 
-(defcustom emms-player-simple-mpv-tq-event-metadata-update-hook nil
-  "Normal hook run when TQ process receives \"metadata-update\" from mpv."
+(defcustom emms-player-simple-mpv-tq-event-filename-functions nil
+  "Abnormal hook run with one argument which is filename."
   :group 'emms-simple-player-mpv
   :type 'hook)
 
-(defvar emms-player-simple-mpv-default-volume-function emms-volume-change-function
-  "Set emms-volume-change-function for buckup.")
+(defcustom emms-player-simple-mpv-tq-event-volume-functions nil
+  "Abnormal hook run with one argument which is volume."
+  :group 'emms-simple-player-mpv
+  :type 'hook)
+
+(defvar emms-player-simple-mpv-last-volume nil
+  "Last volume value.")
+
+(add-hook 'emms-player-simple-mpv-tq-event-volume-functions
+          (lambda (vol) (setq emms-player-simple-mpv-last-volume vol)))
+
+(defcustom emms-player-simple-mpv-tq-event-speed-functions nil
+  "Abnormal hook run with one argument which is speed."
+  :group 'emms-simple-player-mpv
+  :type 'hook)
+
+(defvar emms-player-simple-mpv-last-speed nil
+  "Last speed value.")
+
+(add-hook 'emms-player-simple-mpv-tq-event-speed-functions
+          (lambda (speed) (setq emms-player-simple-mpv-last-speed speed)))
+
+(defcustom emms-player-simple-mpv-tq-event-property-change-functions-alist
+  (list '("filename" . emms-player-simple-mpv-tq-event-filename-functions)
+        '("volume" . emms-player-simple-mpv-tq-event-volume-functions)
+        '("speed" . emms-player-simple-mpv-tq-event-speed-functions))
+  "Alist of property name and abnormal hook.
+Abnormal hook run with one argument for data
+when TQ process receives \"property-change\" from mpv."
+  :group 'emms-simple-player-mpv
+  :type '(alist string hook))
+
+(defcustom emms-player-simple-mpv-keep-properties
+  (list '("volume"
+          emms-player-simple-mpv-keep-volume-available-p
+          emms-player-simple-mpv-last-volume)
+        '("speed"
+          emms-player-simple-mpv-keep-speed-available-p
+          emms-player-simple-mpv-last-speed))
+  "Alist of property name , function and symbol which has the last value.
+The function takes no arguments and returns boolean."
+  :group 'emms-simple-player-mpv
+  :type '(alist string (list function symbol)))
+
+(define-minor-mode emms-player-simple-mpv-keep-volume-mode
+  "Last volume value is used when new track starts."
+  :group 'emms-simple-player-mpv
+  :global t)
+
+(defun emms-player-simple-mpv-keep-volume-available-p ()
+  "Return t if keep-volume-mode is t and last-volume is available."
+  (and emms-player-simple-mpv-keep-volume-mode
+       (emms-player-simple-mpv-last-volume-available-p)))
+
+(defun emms-player-simple-mpv-last-volume-available-p ()
+  "Retrun t if `emms-player-simple-mpv-last-volume' is available."
+  (and (numberp emms-player-simple-mpv-last-volume)
+       (<= 0 emms-player-simple-mpv-last-volume)
+       (<= emms-player-simple-mpv-last-volume 100)))
+
+(define-minor-mode emms-player-simple-mpv-keep-speed-mode
+  "Last speed value is used when new track starts."
+  :group 'emms-simple-player-mpv
+  :global t)
+
+(defun emms-player-simple-mpv-keep-speed-available-p ()
+  "Return t if keep-speed-mode is t and last-speed is available.
+Only track type of file is available."
+  (when (eq (emms-track-type (emms-playlist-current-selected-track))
+            'file)
+    (and emms-player-simple-mpv-keep-speed-mode
+         (emms-player-simple-mpv-last-speed-available-p))))
+
+(defun emms-player-simple-mpv-last-speed-available-p ()
+  "Retrun t if `emms-player-simple-mpv-last-speed' is available."
+  (and (numberp emms-player-simple-mpv-last-speed)
+       (<= 0.01 emms-player-simple-mpv-last-speed)
+       (<= emms-player-simple-mpv-last-speed 100)))
 
 ;;;###autoload
 (defmacro define-emms-simple-player-mpv (name types regex command &rest args)
@@ -218,67 +302,11 @@ See tq.el."
                        (if (or answer-ls (eobp) (ignore-errors (json-read)))
                            point (point-max)))
         (when answer-ls
-          (if event (emms-player-simple-mpv--tq-event-action event)
+          (if event (emms-player-simple-mpv--tq-event-action event answer-ls)
             (when fn
               (unwind-protect
                   (ignore-errors (funcall fn closure answer-ls))
                 (tq-queue-pop tq)))))))))
-
-(defun emms-player-simple-mpv--tq-event-action (event)
-  "Action for the EVENT from mpv."
-  (when (stringp event)
-   (cond
-    ((string= event "pause")
-     (emms-player-simple-mpv--tq-event-action-pause))
-    ((string= event "unpause")
-     (emms-player-simple-mpv--tq-event-action-unpause))
-    ((string= event "playback-restart")
-     (emms-player-simple-mpv--tq-event-action-playback-restart))
-    ((string= event "metadata-update")
-     (emms-player-simple-mpv--tq-event-action-metadata-update)))))
-
-(defun emms-player-simple-mpv--tq-event-action-pause ()
-  "Event action for pause."
-  (setq emms-player-paused-p t)
-  (run-hooks 'emms-player-paused-hook)
-  (condition-case err
-      (run-hooks 'emms-player-simple-mpv-tq-event-pause-hook)
-    (error (message "Error : mpv evet hook for pause : %s"
-                    (error-message-string err)))))
-
-(defun emms-player-simple-mpv--tq-event-action-unpause ()
-  "Event action for unpause."
-  (setq emms-player-paused-p nil)
-  (run-hooks 'emms-player-paused-hook)
-  (condition-case err
-      (run-hooks 'emms-player-simple-mpv-tq-event-unpause-hook)
-    (error (message "Error : mpv evet hook for unpause : %s"
-                    (error-message-string err)))))
-
-(defun emms-player-simple-mpv--tq-event-action-playback-restart ()
-  "Event action for playback-restart."
-  (emms-player-simple-mpv-tq-enqueue
-   '("get_property" "pause")
-   nil
-   (lambda (_ ans-ls)
-     (when (emms-player-simple-mpv-tq-success-p ans-ls)
-       (let ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
-         (when data
-           (if (eq data t)
-               (setq emms-player-paused-p t)
-             (setq emms-player-paused-p nil))
-           (run-hooks 'emms-player-paused-hook))))
-     (condition-case err
-         (run-hooks 'emms-player-simple-mpv-tq-event-playback-restart-hook)
-       (error (message "Error : mpv evet hook for playback-restart : %s"
-                       (error-message-string err)))))))
-
-(defun emms-player-simple-mpv--tq-event-action-metadata-update ()
-  "Event action for metadata-update."
-  (condition-case err
-         (run-hooks 'emms-player-simple-mpv-tq-event-metadata-update-hook)
-       (error (message "Error : mpv evet hook for metadata-update : %s"
-                       (error-message-string err)))))
 
 (defun emms-player-simple-mpv-playing-p ()
   "Return t when `emms-player-simple-mpv--tq' process is open."
@@ -356,6 +384,108 @@ FORM can include a format specification %s."
       (if err (message form err)
         (message "mpv : nothing error message")))))
 
+;; Event action
+(defun emms-player-simple-mpv--tq-event-action (event ans-ls)
+  "Action for the EVENT from mpv.
+If event is \"property-change\", ANS-LS is used."
+  (when (stringp event)
+   (cond
+    ((string= event "playback-restart")
+     (emms-player-simple-mpv--tq-event-action-playback-restart))
+    ((string= event "property-change")
+     (emms-player-simple-mpv--tq-event-action-property-change ans-ls)))))
+
+;; Event for playback-restart
+(defvar emms-player-simple-mpv--sent-observe_property-p) ; Suppress a warning message
+
+(defsubst emms-player-simple-mpv--tq-event-action-playback-restart-dummy ()
+  "Dummy action for getting observe_property's message (for mpv v.0.11)."
+  (emms-player-simple-mpv-tq-enqueue
+   '("get_property" "volume") nil
+   (lambda (_ ans-ls)
+     (when (emms-player-simple-mpv-tq-success-p ans-ls)
+       (emms-player-simple-mpv-tq-enqueue
+        `("set_property" "volume"
+          ,(emms-player-simple-mpv-tq-assq-v 'data ans-ls)) nil
+        (lambda (_ __)))))))
+
+(defun emms-player-simple-mpv--tq-event-action-playback-restart ()
+  "Event action for playback-restart."
+  (unless emms-player-simple-mpv--sent-observe_property-p
+    (emms-player-simple-mpv--send-observe_property)
+    (emms-player-simple-mpv--tq-event-action-playback-restart-dummy))
+  (condition-case err
+      (run-hooks 'emms-player-simple-mpv-tq-event-playback-restart-hook)
+    (error (message "Error : mpv evet hook for playback-restart : %s"
+                    (error-message-string err)))))
+
+;; Event for pause
+(defun emms-player-simple-mpv--tq-event-action-pause ()
+  "Event action for pause."
+  (setq emms-player-paused-p t)
+  (run-hooks 'emms-player-paused-hook)
+  (condition-case err
+      (run-hooks 'emms-player-simple-mpv-tq-event-pause-hook)
+    (error (message "Error : mpv evet hook for pause : %s"
+                    (error-message-string err)))))
+
+;; Event for unpause
+(defun emms-player-simple-mpv--tq-event-action-unpause ()
+  "Event action for unpause."
+  (setq emms-player-paused-p nil)
+  (run-hooks 'emms-player-paused-hook)
+  (condition-case err
+      (run-hooks 'emms-player-simple-mpv-tq-event-unpause-hook)
+    (error (message "Error : mpv evet hook for unpause : %s"
+                    (error-message-string err)))))
+
+;; Event for property-change
+(defun emms-player-simple-mpv--tq-event-action-property-change (ans-ls)
+  "Event action for property-change which is from ANS-LS."
+  (let ((name (emms-player-simple-mpv-tq-assq-v 'name ans-ls) )
+        (data (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+    (when (stringp name)
+     (cond
+      ((string= name "pause")
+       (if (eq data t) (emms-player-simple-mpv--tq-event-action-pause)
+         (emms-player-simple-mpv--tq-event-action-unpause)))
+      (t (emms-player-simple-mpv--run-tq-event-property-change-functions name data))))))
+
+(defvar emms-player-simple-mpv--observe_property-name-als nil
+  "Alist of property name and id.")
+
+(defvar emms-player-simple-mpv--observe_property-id-counter
+  (let ((count 0)) (lambda () (cl-incf count)))
+    "Return new property id number.")
+
+(defun emms-player-simple-mpv--observe_property-id-counter (&optional initializep)
+  "Make property id counter."
+  (if initializep
+      (setq emms-player-simple-mpv--observe_property-id-counter
+            (let ((count 0)) (lambda () (cl-incf count))))
+    (funcall emms-player-simple-mpv--observe_property-id-counter)))
+
+(defvar emms-player-simple-mpv--sent-observe_property-p nil
+  "If non-nil, `emms-player-simple-mpv--send-observe_property' has done.")
+
+(defun emms-player-simple-mpv--send-observe_property ()
+  "Send observe_property for initialization."
+  (emms-player-simple-mpv-observe_property "pause")
+  (cl-loop for (name . _)
+           in emms-player-simple-mpv-tq-event-property-change-functions-alist do
+           (emms-player-simple-mpv-observe_property name))
+  (setq emms-player-simple-mpv--sent-observe_property-p t))
+
+(defun emms-player-simple-mpv--run-tq-event-property-change-functions (name data)
+  "Event action for NAME.
+DATA is used for the argument of name's abnormal hook.
+`emms-player-simple-mpv-tq-event-property-change-functions-alist' is used."
+  (let ((functions (assoc-default name emms-player-simple-mpv-tq-event-property-change-functions-alist)))
+    (condition-case err
+        (when functions (run-hook-with-args functions data))
+      (error (message "Error : mpv evet hook for %s : %s"
+                      name (error-message-string err))))))
+
 ;; Functions to start mpv
 
 ;;;###autoload
@@ -406,15 +536,37 @@ FN takes track-name as an argument."
           cmdname
           `(,@params ,input-form)))
 
+(defun emms-player-simple-mpv--start-initialize ()
+  "Initalize golobal variables before making a process."
+  (emms-player-simple-mpv--tq-close)
+  (emms-player-simple-mpv--observe_property-id-counter t)
+  (setq emms-player-simple-mpv--observe_property-name-als nil
+        emms-player-simple-mpv--sent-observe_property-p nil))
+
+(defun emms-player-simple-mpv--add-keep-property-params (params)
+  "Add `emms-player-simple-mpv-keep-properties' to PARAMS."
+  (when emms-player-simple-mpv-keep-properties
+    (setq params (cl-copy-list params))
+    (cl-loop for (name availablep val-name) in emms-player-simple-mpv-keep-properties
+             when (funcall availablep) do
+             (setq params
+                   (cons (format "--%s=%s" name (symbol-value val-name))
+                         (cl-delete-if (lambda (param)
+                                         (string-match (format "\\`--%s=" name)
+                                                       param))
+                                       params)))))
+  params)
+
 ;;;###autoload
 (defun emms-player-simple-mpv-start (track player cmdname params)
   "Emulate `emms-player-simple-start' but the first arg."
-  (emms-player-simple-mpv--tq-close)
+  (emms-player-simple-mpv--start-initialize)
   (let* ((input-socket
           (format "--input-unix-socket=%s" (emms-player-simple-mpv--socket)))
          (input-form
           (emms-player-simple-mpv--track-to-input-form
            track (emms-player-get player 'mpv-track-name-converters)))
+         (params (emms-player-simple-mpv--add-keep-property-params params))
          (process
           (funcall (emms-player-get player 'mpv-start-process-function)
                    cmdname `(,input-socket ,@params)
@@ -439,6 +591,18 @@ FN takes track-name as an argument."
         (emms-player-simple-mpv--set-volume-change-function)))))
 
 ;; Functions to control mpv
+
+;;;###autoload
+(defun emms-player-simple-mpv-observe_property (name)
+  "Set observe_property of NAME."
+  (let ((id (emms-player-simple-mpv--observe_property-id-counter)))
+    (unless (assoc name emms-player-simple-mpv--observe_property-name-als)
+      (emms-player-simple-mpv-tq-enqueue
+       (list "observe_property" id name) nil
+       (lambda (_ ans-ls)
+         (if (emms-player-simple-mpv-tq-success-p ans-ls)
+             (push (cons name id) emms-player-simple-mpv--observe_property-name-als)
+           (message "mpv : Failed to set \"observe_property\" of %s" name)))))))
 
 (defmacro emms-player-simple-mpv--set_property-1 (command)
   "Helper macro emms-player-simple-mpv-set_property\(_string\)."
