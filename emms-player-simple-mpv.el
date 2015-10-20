@@ -3,7 +3,7 @@
 ;; Copyright (C) 2015 momomo5717
 
 ;; Keywords: emms, mpv
-;; Version: 0.2.1
+;; Version: 0.3.0
 ;; Package-Requires: ((emacs "24") (cl-lib "0.5") (emms "4.0"))
 ;; URL: https://github.com/momomo5717/emms-player-simple-mpv
 
@@ -74,7 +74,7 @@
 (require 'tq)
 (require 'later-do)
 
-(defconst emms-player-simple-mpv-version "0.2.1")
+(defconst emms-player-simple-mpv-version "0.3.0")
 
 (defgroup emms-simple-player-mpv nil
   "An extension of emms-simple-player.el."
