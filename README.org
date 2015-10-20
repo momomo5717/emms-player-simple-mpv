@@ -141,20 +141,20 @@
 
 ***** emms-player-simple-mpv-e.g.time-display.el
 
-      This file provides a setting example for =emms-playing-time-display= to syncronize with =time-pos= of mpv.
+      This file is a setting example for =emms-playing-time-display= to syncronize with =time-pos= of mpv.
 
       =(requre 'emms-player-simple-mpv-e.g.time-display)= provides it.
 
 ***** emms-player-simple-mpv-e.g.playlist-fname.el
 
-      This file provides a setting example for displaying =filename= of mpv for each track
+      This file is a setting example for displaying =filename= of mpv for each track
       when a playlist file is used.
 
       =(requre 'emms-player-simple-mpv-e.g.playlist-fname)= provides it.
 
 ***** emms-player-simple-mpv-e.g.hydra.el
 
-      This file provides a setting example for hydra ( [[https://github.com/abo-abo/hydra]] ).
+      This file is a setting example for hydra ( [[https://github.com/abo-abo/hydra]] ).
       It emulates default key bindings of mpv player.
 
       =(requre 'emms-player-simple-mpv-e.g.hydra)= provides it.
