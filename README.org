@@ -84,18 +84,18 @@
 
       If it is non-nil, the last volume value is used when new track starts.
 
-      `(emms-player-simple-mpv-keep-volume-mode 1)` provides it.
+      =(emms-player-simple-mpv-keep-volume-mode 1)= provides it.
 
-      M-x `emms-player-simple-mpv-keep-volume-mode` toggles it.
+      M-x =emms-player-simple-mpv-keep-volume-mode= toggles it.
 
 ***** Minor Mode: =emms-player-simple-mpv-keep-speed-mode=
 
       If it is non-nil, the last speed value is used when new track starts.
       Only track type of file is available.
 
-      `(emms-player-simple-mpv-keep-speed-mode 1)` provides it.
+      =(emms-player-simple-mpv-keep-speed-mode 1)= provides it.
 
-      M-x `emms-player-simple-mpv-keep-speed-mode` toggles it.
+      M-x =emms-player-simple-mpv-keep-speed-mode= toggles it.
 
 ***** User Option: =emms-player-simple-mpv-keep-properties=
 
@@ -141,23 +141,23 @@
 
 ***** emms-player-simple-mpv-e.g.time-display.el
 
-      This file provides a setting example for `emms-playing-time-display` to syncronize with `time-pos` of mpv.
+      This file provides a setting example for =emms-playing-time-display= to syncronize with =time-pos= of mpv.
 
-      `(requre 'emms-player-simple-mpv-e.g.time-display)` provides it.
+      =(requre 'emms-player-simple-mpv-e.g.time-display)= provides it.
 
 ***** emms-player-simple-mpv-e.g.playlist-fname.el
 
-      This file provides a setting example for displaying `filename` of mpv for each track
+      This file provides a setting example for displaying =filename= of mpv for each track
       when a playlist file is used.
 
-      `(requre 'emms-player-simple-mpv-e.g.playlist-fname)` provides it.
+      =(requre 'emms-player-simple-mpv-e.g.playlist-fname)= provides it.
 
 ***** emms-player-simple-mpv-e.g.hydra.el
 
       This file provides a setting example for hydra ( [[https://github.com/abo-abo/hydra]] ).
       It emulates default key bindings of mpv player.
 
-      `(requre 'emms-player-simple-mpv-e.g.hydra)` provides it.
+      =(requre 'emms-player-simple-mpv-e.g.hydra)= provides it.
 
 **** Some examples of defining specific emms simple players of mpv
 
