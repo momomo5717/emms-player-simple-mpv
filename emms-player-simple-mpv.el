@@ -59,6 +59,11 @@
 ;;
 ;; (add-to-list 'emms-player-list 'emms-player-my-mpv)
 ;;
+;; The following setting examples are available:
+;;
+;;   + emms-player-simple-mpv-e.g.time-display.el
+;;   + emms-player-simple-mpv-e.g.playlist-fname.el
+;;   + emms-player-simple-mpv-e.g.hydra.el
 
 ;;; Code:
 
