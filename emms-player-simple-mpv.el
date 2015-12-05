@@ -39,7 +39,7 @@
 ;; Setup:
 ;;
 ;; (require 'emms-player-simple-mpv)
-;; ;; If you use other control functions,
+;; ;; This plugin provides control functions (e.g. ab-loop, speed, fullscreen).
 ;; (require 'emms-player-simple-mpv-control-functions)
 ;;
 ;; Usage:
@@ -59,7 +59,7 @@
 ;;
 ;; (add-to-list 'emms-player-list 'emms-player-my-mpv)
 ;;
-;; The following setting examples are available:
+;; The following example configuration files are available:
 ;;
 ;;   + emms-player-simple-mpv-e.g.time-display.el
 ;;   + emms-player-simple-mpv-e.g.playlist-fname.el
@@ -497,19 +497,20 @@ TYPES is type list or t.
 FN takes track-name as an argument."
   (let ((converters (emms-player-get player 'mpv-track-name-converters))
         (converter (list regexp types fn)))
-    (if (cl-find regexp converters :key #'car :test #'equal)
-        converters
+    (unless (cl-find converter converters :test #'equal)
       (emms-player-set player 'mpv-track-name-converters
                        (if appendp
                            (nconc converters (list converter))
-                         (cons converter converters))))))
+                         (cons converter converters))))
+    (emms-player-get player 'mpv-track-name-converters)))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-remove-converter (player regexp)
   "Remove the converter from PLAYER's mpv-track-name-converters which has REGEXP."
   (let ((converters (emms-player-get player 'mpv-track-name-converters)))
     (emms-player-set player 'mpv-track-name-converters
-                     (cl-delete regexp converters :key #'car :test #'equal))))
+                     (cl-delete regexp converters :key #'car :test #'equal))
+    (emms-player-get player 'mpv-track-name-converters)))
 
 (defun emms-player-simple-mpv--track-to-input-form (track track-name-converters)
   "Convert TRACK to mpv input form by TRACK-NAME-CONVERTERS."
