@@ -8,7 +8,7 @@
 
   emms-player-simple-mpv-control-functions.el provides other functions to control mpv.
 
-  The following setting examples are available:
+  The following example configuration files are available:
 
     + emms-player-simple-mpv-e.g.time-display.el
     + emms-player-simple-mpv-e.g.playlist-fname.el
@@ -20,7 +20,7 @@
   + [[#setup][Setup]]
   + [[#usage][Usage]]
     + [[#customization][Customization]]
-    + [[#setting-example-files][Setting example files]]
+    + [[#example-configuration-files][Example configuration files]]
     + [[#some-examples-of-defining-specific-emms-simple-players-of-mpv][Some examples of defining specific emms simple players of mpv]]
   + [[#references][References]]
 
@@ -38,7 +38,7 @@
    #+BEGIN_SRC emacs-lisp
      (add-to-list 'load-path "/path/to/emms-player-simple-mpv")
      (require 'emms-player-simple-mpv)
-     ;; If you use other control functions,
+     ;; This plugin provides control functions (e.g. ab-loop, speed, fullscreen).
      (require 'emms-player-simple-mpv-control-functions)
    #+END_SRC
 
@@ -137,24 +137,24 @@
 
       =emms-player-simple-mpv-tq-event-property-change-functions-alist= includes it.
 
-**** Setting example files
+**** Example configuration files
 
 ***** emms-player-simple-mpv-e.g.time-display.el
 
-      This file is a setting example for =emms-playing-time-display= to syncronize with =time-pos= of mpv.
+      This file is an example configuration for =emms-playing-time-display= to synchronize with =time-pos= of mpv.
 
       =(requre 'emms-player-simple-mpv-e.g.time-display)= provides it.
 
 ***** emms-player-simple-mpv-e.g.playlist-fname.el
 
-      This file is a setting example for displaying =filename= of mpv for each track
+      This file is an example configuration for displaying =filename= of mpv for each track
       when a playlist file is used.
 
       =(requre 'emms-player-simple-mpv-e.g.playlist-fname)= provides it.
 
 ***** emms-player-simple-mpv-e.g.hydra.el
 
-      This file is a setting example for hydra ( [[https://github.com/abo-abo/hydra]] ).
+      This file is an example configuration for hydra ( [[https://github.com/abo-abo/hydra]] ).
       It emulates default key bindings of mpv player.
 
       =(requre 'emms-player-simple-mpv-e.g.hydra)= provides it.
