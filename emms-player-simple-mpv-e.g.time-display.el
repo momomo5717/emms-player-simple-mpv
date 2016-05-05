@@ -29,8 +29,10 @@
 (require 'emms-mode-line)
 (require 'emms-playing-time)
 
-(defvar emms-mode-line-cycle) ; Suppres a warning message.
+(defvar emms-mode-line-cycle) ; Suppress a warning message.
+(defvar emms-state-mode)
 
+;; Update playing-time
 (defun emms-player-simple-mpv-reset-playing-time-display-timer (&optional speed)
   "Reset `emms-playing-time'.
 SPEED is a mpv property of speed."
@@ -38,8 +40,11 @@ SPEED is a mpv property of speed."
    '("get_property" "time-pos")
    (float-time)
    (lambda (sent-time ans-ls)
-     (let ((time (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
-       (when (and (emms-player-simple-mpv-playing-p) (numberp time))
+     (let ((time (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+           (update-fn (cond ((bound-and-true-p emms-state-mode) 'emms-state-playing-time-step)
+                            (emms-playing-time-p 'emms-playing-time-display))))
+       (when (and (emms-player-simple-mpv-playing-p) (numberp time)
+                  (functionp update-fn))
          (when emms-playing-time-display-timer
            (emms-cancel-timer emms-playing-time-display-timer)
            (setq emms-playing-time-display-timer nil))
@@ -47,7 +52,7 @@ SPEED is a mpv property of speed."
            (setq time (+ time (- (float-time) sent-time))))
          (setq emms-playing-time (1- (floor time)))
          (let (emms-mode-line-cycle)
-           (emms-playing-time-display))
+           (funcall update-fn))
          (force-mode-line-update t)
          (unless emms-player-paused-p
            (setq speed (or (and (numberp speed)
@@ -58,10 +63,10 @@ SPEED is a mpv property of speed."
                  (if speed
                      (run-at-time (/ (- 1.0 (- time (ffloor time))) speed)
                                   (/ 1.0 speed)
-                                  'emms-playing-time-display)
+                                  update-fn)
                    (run-at-time (- 1.0 (- time  (ffloor time)))
                                 1.0
-                                'emms-playing-time-display)))))))))
+                                update-fn)))))))))
 
 (add-hook 'emms-player-simple-mpv-tq-event-unpause-hook
           'emms-player-simple-mpv-reset-playing-time-display-timer)
