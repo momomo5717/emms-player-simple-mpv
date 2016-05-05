@@ -136,10 +136,14 @@
 (add-hook 'emms-player-simple-mpv-tq-event-speed-functions
           (lambda (speed) (setq emms-player-simple-mpv-last-speed speed)))
 
+(defcustom emms-player-simple-mpv-tq-event-length-functions nil
+  "Abnormal hook run with one argument which is length.")
+
 (defcustom emms-player-simple-mpv-tq-event-property-change-functions-alist
   (list '("filename" . emms-player-simple-mpv-tq-event-filename-functions)
         '("volume" . emms-player-simple-mpv-tq-event-volume-functions)
-        '("speed" . emms-player-simple-mpv-tq-event-speed-functions))
+        '("speed" . emms-player-simple-mpv-tq-event-speed-functions)
+        '("length" . emms-player-simple-mpv-tq-event-length-functions))
   "Alist of property name and abnormal hook.
 Abnormal hook run with one argument for data
 when TQ process receives \"property-change\" from mpv."

@@ -31,6 +31,7 @@
 
 (defvar emms-mode-line-cycle) ; Suppress a warning message.
 (defvar emms-state-mode)
+(declare-function emms-state-set-total-playing-time "ext:emms-state")
 
 ;; Update playing-time
 (defun emms-player-simple-mpv-reset-playing-time-display-timer (&optional speed)
@@ -76,6 +77,23 @@ SPEED is a mpv property of speed."
 
 (add-hook 'emms-player-simple-mpv-tq-event-speed-functions
           'emms-player-simple-mpv-reset-playing-time-display-timer)
+
+;; Update info-playing-time
+(defvar emms-player-simple-mpv-info-playing-time-ignore-types nil
+  "List of type.")
+
+(defun emms-player-simple-mpv-set-info-playing-time (length)
+  "Set info-playing-time to LENGTH."
+  (when (and  (numberp length)
+              (not (memq (emms-track-type (emms-playlist-current-selected-track))
+                         emms-player-simple-mpv-info-playing-time-ignore-types)))
+    (emms-track-set
+     (emms-playlist-current-selected-track)
+     'info-playing-time (floor length))
+    (when (bound-and-true-p emms-state-mode) (emms-state-set-total-playing-time))))
+
+(add-hook 'emms-player-simple-mpv-tq-event-length-functions
+          'emms-player-simple-mpv-set-info-playing-time)
 
 (provide 'emms-player-simple-mpv-e.g.time-display)
 ;;; emms-player-simple-mpv-e.g.time-display.el ends here
