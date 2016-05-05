@@ -81,6 +81,43 @@
   :group 'emms-player
   :prefix "emms-simple-player-mpv-")
 
+(defcustom emms-player-simple-mpv-ipc-option-name nil
+  "IPC option name.
+Renamed --input-unix-socket to --input-ipc-server since mpv v0.17.0"
+  :group 'emms-simple-player-mpv
+  :type '(choice (const :tag "Set automatically" nil)
+                 (const :tag "mpv v0.17.0 or later" "--input-ipc-server")
+                 (const :tag "mpv v0.7.0 to v0.16.0 " "--input-unix-socket")))
+
+;;;###autoload
+(defun emms-player-simple-mpv-get-version ()
+  "Return mpv version."
+  (with-temp-buffer
+    (unless (zerop (call-process "mpv" nil t "--verison"))
+      (error "Failed to get mpv version"))
+    (goto-char (point-min))
+    (if (re-search-forward
+         "^mpv\\s-+\\(\\([0-9]+\\.\\)\\{2\\}[0-9]+\\)[^0-9]" nil t)
+        (match-string-no-properties 1)
+      (error "Failed to get mpv version"))))
+
+(defun emms-player-simple-mpv-get-ipc-option-name ()
+  "Return ipc option name."
+  (if (version< (emms-player-simple-mpv-get-version) "0.17.0")
+      "--input-unix-socket"
+    "--input-ipc-server"))
+
+(defcustom emms-player-simple-mpv-ipc-dir nil
+  "Directory name for IPC.
+If nil, `temporary-file-directory' will be used."
+  :group 'emms-simple-player-mpv
+  :type '(choice (const :tag "Use `temporary-file-directory'." nil)
+                 (directory :tag "Directory name.")))
+
+(defvar emms-player-simple-mpv-ipc-fname-prefix "mpv--socket"
+  "File name prefix for IPC.
+This variable will used with `make-temp-name'.")
+
 (defcustom emms-player-simple-mpv-use-volume-change-function-p t
   "If non-nil, `emms-player-simple-mpv-volume-change' is used as `emms-volume-change-function'."
   :group 'emms-simple-player-mpv
@@ -257,11 +294,13 @@ Only track type of file is available."
   "emms-player-simple-mpv-tq-process")
 
 (defvar emms-player-simple-mpv--socket
-  (expand-file-name (make-temp-name "mpv--socket") temporary-file-directory))
+  (expand-file-name (make-temp-name emms-player-simple-mpv-ipc-fname-prefix)
+                    (or emms-player-simple-mpv-ipc-dir temporary-file-directory)))
 
 (defun emms-player-simple-mpv--socket ()
   (setq emms-player-simple-mpv--socket
-        (expand-file-name (make-temp-name "mpv--socket") temporary-file-directory)))
+        (expand-file-name (make-temp-name emms-player-simple-mpv-ipc-fname-prefix)
+                          (or emms-player-simple-mpv-ipc-dir temporary-file-directory))))
 
 (defun emms-player-simple-mpv--tq-create ()
   (tq-create (make-network-process
@@ -562,12 +601,22 @@ FN takes track-name as an argument."
                                        params)))))
   params)
 
+(defun emms-player-simple-mpv--socket-wait-file (process fname)
+  "Wait for PROCESS's socket FNAME."
+  (while (and (eq (process-status process) 'run)
+              (not (file-exists-p fname)))
+    (sit-for 0.05)))
+
 ;;;###autoload
 (defun emms-player-simple-mpv-start (track player cmdname params)
   "Emulate `emms-player-simple-start' but the first arg."
+  (unless emms-player-simple-mpv-ipc-option-name
+    (setq emms-player-simple-mpv-ipc-option-name
+          (emms-player-simple-mpv-get-ipc-option-name)))
   (emms-player-simple-mpv--start-initialize)
   (let* ((input-socket
-          (format "--input-unix-socket=%s" (emms-player-simple-mpv--socket)))
+          (format "%s=%s" emms-player-simple-mpv-ipc-option-name
+                  (emms-player-simple-mpv--socket)))
          (input-form
           (emms-player-simple-mpv--track-to-input-form
            track (emms-player-get player 'mpv-track-name-converters)))
@@ -580,9 +629,8 @@ FN takes track-name as an argument."
     (emms-player-started player)
     (setq emms-player-paused-p t)
     (run-hooks 'emms-player-paused-hook)
-    (while (and (eq (process-status process) 'run)
-                (not (file-exists-p emms-player-simple-mpv--socket)))
-      (sit-for 0.05))
+    (emms-player-simple-mpv--socket-wait-file process
+                                              emms-player-simple-mpv--socket)
     (condition-case err
         (setq emms-player-simple-mpv--tq (emms-player-simple-mpv--tq-create))
       (error (message "%s" (error-message-string err))
