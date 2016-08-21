@@ -664,16 +664,18 @@ FN takes track-name as an argument."
     nil
     (lambda (_ ans-ls)
       (if (emms-player-simple-mpv-tq-success-p ans-ls)
-          (message (format "mpv %s : %s" msg spec) (funcall fn value))
-        (message "mpv %s : error" err-msg)))))
+          (when msg
+            (message (format "mpv %s : %s" msg spec) (funcall fn value)))
+        (when err-msg
+          (message "mpv %s : error" err-msg))))))
 
 ;;;###autoload
 (cl-defun emms-player-simple-mpv-set_property
     (property value &key (spec "%s") (msg property) (err-msg property) (fn #'identity))
   "Set PROPERTY to VALUE.
 :SPEC is a format specification for VALUE.
-:MSG is displayed when command succeeds.
-:ERR-MSG is displayed when command fails.
+:MSG is displayed when command succeeds. If nil, it will be ignored.
+:ERR-MSG is displayed when command fails. If nil, it will be ignored.
 :FN takes VALUE as an argument."
   (emms-player-simple-mpv--set_property-1 "set_property"))
 
@@ -682,8 +684,8 @@ FN takes track-name as an argument."
     (property value &key (spec "%s") (msg property) (err-msg property) (fn #'identity))
   "Set PROPERTY to VALUE.
 :SPEC is a format specification for VALUE.
-:MSG is displayed when command succeeds.
-:ERR-MSG is displayed when command fails.
+:MSG is displayed when command succeeds. If nil, it will be ignored.
+:ERR-MSG is displayed when command fails. If nil, it will be ignored.
 :FN takes VALUE as an argument."
   (emms-player-simple-mpv--set_property-1 "set_property_string"))
 
