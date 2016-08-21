@@ -212,8 +212,7 @@ The function takes no arguments and returns boolean."
 (defun emms-player-simple-mpv-last-volume-available-p ()
   "Retrun t if `emms-player-simple-mpv-last-volume' is available."
   (and (numberp emms-player-simple-mpv-last-volume)
-       (<= 0 emms-player-simple-mpv-last-volume)
-       (<= emms-player-simple-mpv-last-volume 100)))
+       (<= 0 emms-player-simple-mpv-last-volume)))
 
 (define-minor-mode emms-player-simple-mpv-keep-speed-mode
   "Last speed value is used when new track starts."
@@ -779,11 +778,9 @@ ANS-LS includes data value."
   (if (emms-player-simple-mpv-tq-success-p ans-ls)
       (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
              (data+ (round (+ data v)))
-             (vol (cond
-                   ((< data+ 0) 0)
-                   ((> data+ 100) 100)
-                   (t data+))))
-        (emms-player-simple-mpv-set_property "volume" vol))
+             (vol (if (< data+ 0) 0 data+)))
+        (emms-player-simple-mpv-set_property
+         "volume" vol :err-msg (format ": set volume to %s" vol)))
     (message "mpv volume : error")))
 
 ;;;###autoload
