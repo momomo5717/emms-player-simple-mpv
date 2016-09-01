@@ -363,5 +363,51 @@ Display NAME in minibuffer."
   (interactive)
   (emms-player-simple-mpv--metadata-1 "filtered-metadata"))
 
+(defvar emms-player-simple-mpv--property-list nil
+  "List of property names.")
+
+(defvar emms-player-simple-mpv--property-list-history nil
+  "`minibuffer-history' for `emms-player-simple-mpv-display-property'.")
+
+(defun emms-player-simple-mpv--property-list-1 ()
+  "Helper function for `emms-player-simple-mpv-property-list'."
+  (let ((property
+         (completing-read "mpv property: "
+                          emms-player-simple-mpv--property-list
+                          nil nil nil
+                          'emms-player-simple-mpv--property-list-history)))
+    (when property
+      (emms-player-simple-mpv-tq-enqueue
+       `("get_property_string" ,property) nil
+       (lambda (_ ans-ls)
+         (if (and (listp ans-ls)
+                  (emms-player-simple-mpv-tq-success-p ans-ls))
+             (let ((data (cdr (assq 'data ans-ls))))
+               (message "mpv %s : %s" property data))
+           (message "mpv %s : %s" property
+                    (if (and (listp ans-ls) (assq 'error ans-ls))
+                        "error"
+                      "Failed to get data"))))))))
+
+;;;###autoload
+(defun emms-player-simple-mpv-property-list ()
+  "Display the current value of a property via get_property_string."
+  (interactive)
+  (if emms-player-simple-mpv--property-list
+      (emms-player-simple-mpv--property-list-1)
+    (emms-player-simple-mpv-tq-enqueue
+     '("get_property" "property-list") nil
+     (lambda (_ ans-ls)
+       (if (emms-player-simple-mpv-tq-success-p ans-ls)
+           (let ((data (cdr (assq 'data ans-ls))))
+             (setq emms-player-simple-mpv--property-list
+                   (sort (append data nil) #'string<))
+             (run-with-idle-timer
+              0 nil
+              (lambda ()
+                (let ((this-command 'emms-player-simple-mpv-property-list))
+                  (emms-player-simple-mpv--property-list-1)))))
+         (message "mpv property-list : error"))))))
+
 (provide 'emms-player-simple-mpv-control-functions)
 ;;; emms-player-simple-mpv-control-functions.el ends here
