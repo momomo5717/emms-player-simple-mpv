@@ -327,7 +327,8 @@ Only track type of file is available."
       (with-current-buffer buffer
         (goto-char (point-max))
         (insert string)
-        (emms-player-simple-mpv--tq-process-buffer tq)))))
+        (when (and (eobp) (bolp))
+         (emms-player-simple-mpv--tq-process-buffer tq))))))
 
 (defun emms-player-simple-mpv--tq-process-buffer (tq)
   "Check TQ's buffer at the head of the queue.
@@ -336,19 +337,19 @@ See tq.el."
     (while (and (buffer-live-p buffer) (set-buffer buffer) (> (buffer-size) 0))
       (goto-char (point-min))
       (let* ((answer-ls (ignore-errors (json-read)))
-             (point (point))
+             (point (if (re-search-forward "{" nil t)
+                        (goto-char (match-beginning 0))
+                      (point)))
              (fn (tq-queue-head-fn tq))
              (closure (tq-queue-head-closure tq))
-             (event (emms-player-simple-mpv-tq-assq-v 'event answer-ls)))
+             (event (and (listp answer-ls)
+                         (emms-player-simple-mpv-tq-assq-v 'event answer-ls))))
         (delete-region (point-min)
-                       (if (or answer-ls (eobp) (ignore-errors (json-read)))
-                           point (point-max)))
-        (when answer-ls
-          (if event (emms-player-simple-mpv--tq-event-action event answer-ls)
-            (when fn
-              (unwind-protect
-                  (ignore-errors (funcall fn closure answer-ls))
-                (tq-queue-pop tq)))))))))
+                       (if (ignore-errors (json-read)) point (point-max)))
+        (if event (emms-player-simple-mpv--tq-event-action event answer-ls)
+          (unwind-protect
+              (when fn (ignore-errors (funcall fn closure answer-ls)))
+            (tq-queue-pop tq)))))))
 
 (defun emms-player-simple-mpv-playing-p ()
   "Return t when `emms-player-simple-mpv--tq' process is open."
