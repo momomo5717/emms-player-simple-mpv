@@ -1,5 +1,5 @@
-[[http://melpa.org/#/emms-player-simple-mpv][file:http://melpa.org/packages/emms-player-simple-mpv-badge.svg]]
-[[http://stable.melpa.org/#/emms-player-simple-mpv][file:http://stable.melpa.org/packages/emms-player-simple-mpv-badge.svg]]
+[[https://melpa.org/#/emms-player-simple-mpv][file:https://melpa.org/packages/emms-player-simple-mpv-badge.svg]]
+[[https://stable.melpa.org/#/emms-player-simple-mpv][file:https://stable.melpa.org/packages/emms-player-simple-mpv-badge.svg]]
 
 * emms-player-simple-mpv
 
@@ -31,7 +31,7 @@
    + mpv v0.7.0 or later ( [[https://github.com/mpv-player/mpv]] )
    + Unix Sockets
 
-   Tested on GNU Emacs 24.5.1 (emacs-mac-app @5.15_1), EMMS 4.0, mpv @0.15.0_0.
+   Tested on GNU Emacs 24.5.1 (emacs-mac-app @5.18_0), EMMS 4.0, mpv @0.17.0_2.
 
 ** Setup
 
@@ -186,6 +186,12 @@
 
     =(requre 'emms-player-simple-mpv-e.g.hydra)= provides it.
 
+    #+BEGIN_SRC elisp
+      ;; This variable can be set before loading.
+      (setq emms-player-simple-mpv-hydra-docstring "mpv hydra\n")
+      (require 'emms-player-simple-mpv-e.g.hydra)
+    #+END_SRC
+
 ** Some examples of defining specific emms simple players of mpv
 
    + [[https://github.com/momomo5717/emms-player-mpv-jp-radios]]
@@ -194,4 +200,4 @@
 
    + emms-player-mpv ( [[https://github.com/dochang/emms-player-mpv]] )
    + mpv.el ( [[https://github.com/kljohann/mpv.el]] )
-   + mpv reference manual ( http://mpv.io/manual/ )
+   + mpv reference manual ( https://mpv.io/manual/ )
