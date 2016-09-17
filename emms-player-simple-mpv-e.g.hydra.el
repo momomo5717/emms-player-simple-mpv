@@ -29,11 +29,8 @@
 
 ;; This setting example emulates default key bindings of mpv player as mutch as possible.
 
-(eval-after-load "emms-player-simple-mpv-control-functions"
-  '(eval-after-load "hydra"
-     '(defhydra emms-player-simple-mpv-hydra
-        (:foreign-keys warn :hint nil)
-        "
+(defvar emms-player-simple-mpv-hydra-docstring
+  "
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃      Keyboard Control for emms simple player of mpv      ┃
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
@@ -78,6 +75,13 @@
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 "
+  "Docstring for `emms-player-simple-mpv-hydra/body'.")
+
+(eval-after-load "emms-player-simple-mpv-control-functions"
+  `(eval-after-load "hydra"
+     '(defhydra emms-player-simple-mpv-hydra
+        (:foreign-keys warn :hint nil)
+        ,emms-player-simple-mpv-hydra-docstring
         ("Q" nil)
         ("<left>"    (lambda () (interactive) (emms-seek -5)))
         ("S-<left>"  (lambda () (interactive) (emms-seek -1)))
