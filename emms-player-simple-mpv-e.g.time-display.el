@@ -1,7 +1,8 @@
 ;;; emms-player-simple-mpv-e.g.time-display.el --- A setting example of TQ event hooks -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015 momomo5717
+;; Copyright (C) 2015-2016 momomo5717
 
+;; Author: momomo5717
 ;; URL: https://github.com/momomo5717/
 
 ;; This program is free software; you can redistribute it and/or modify

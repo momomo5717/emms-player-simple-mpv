@@ -1,10 +1,11 @@
 ;;; emms-player-simple-mpv.el --- An extension of emms-player-simple.el for mpv JSON IPC  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015 momomo5717
+;; Copyright (C) 2015-2016 momomo5717
 
 ;; Keywords: emms, mpv
 ;; Version: 0.3.0
 ;; Package-Requires: ((emacs "24") (cl-lib "0.5") (emms "4.0"))
+;; Author: momomo5717
 ;; URL: https://github.com/momomo5717/emms-player-simple-mpv
 
 ;; This program is free software; you can redistribute it and/or modify
