@@ -1,7 +1,8 @@
 ;;; emms-player-simple-mpv-e.g.hydra.el --- A setting example for hydra -*- lexical-binding: t; no-byte-compile: t -*-
 
-;; Copyright (C) 2015 momomo5717
+;; Copyright (C) 2015-2016 momomo5717
 
+;; Author: momomo5717
 ;; URL: https://github.com/momomo5717/
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -29,11 +30,8 @@
 
 ;; This setting example emulates default key bindings of mpv player as mutch as possible.
 
-(eval-after-load "emms-player-simple-mpv-control-functions"
-  '(eval-after-load "hydra"
-     '(defhydra emms-player-simple-mpv-hydra
-        (:foreign-keys warn :hint nil)
-        "
+(defvar emms-player-simple-mpv-hydra-docstring
+  "
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃      Keyboard Control for emms simple player of mpv      ┃
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
@@ -78,6 +76,13 @@
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 "
+  "Docstring for `emms-player-simple-mpv-hydra/body'.")
+
+(eval-after-load "emms-player-simple-mpv-control-functions"
+  `(eval-after-load "hydra"
+     '(defhydra emms-player-simple-mpv-hydra
+        (:foreign-keys warn :hint nil)
+        ,emms-player-simple-mpv-hydra-docstring
         ("Q" nil)
         ("<left>"    (lambda () (interactive) (emms-seek -5)))
         ("S-<left>"  (lambda () (interactive) (emms-seek -1)))

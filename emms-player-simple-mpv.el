@@ -1,10 +1,11 @@
 ;;; emms-player-simple-mpv.el --- An extension of emms-player-simple.el for mpv JSON IPC  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015 momomo5717
+;; Copyright (C) 2015-2016 momomo5717
 
 ;; Keywords: emms, mpv
-;; Version: 0.3.0
+;; Version: 0.4.0
 ;; Package-Requires: ((emacs "24") (cl-lib "0.5") (emms "4.0"))
+;; Author: momomo5717
 ;; URL: https://github.com/momomo5717/emms-player-simple-mpv
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -39,7 +40,7 @@
 ;; Setup:
 ;;
 ;; (require 'emms-player-simple-mpv)
-;; ;; If you use other control functions,
+;; ;; This plugin provides control functions (e.g. ab-loop, speed, fullscreen).
 ;; (require 'emms-player-simple-mpv-control-functions)
 ;;
 ;; Usage:
@@ -59,7 +60,7 @@
 ;;
 ;; (add-to-list 'emms-player-list 'emms-player-my-mpv)
 ;;
-;; The following setting examples are available:
+;; The following example configuration files are available:
 ;;
 ;;   + emms-player-simple-mpv-e.g.time-display.el
 ;;   + emms-player-simple-mpv-e.g.playlist-fname.el
@@ -80,6 +81,43 @@
   "An extension of emms-simple-player.el."
   :group 'emms-player
   :prefix "emms-simple-player-mpv-")
+
+(defcustom emms-player-simple-mpv-ipc-option-name nil
+  "IPC option name.
+Renamed --input-unix-socket to --input-ipc-server since mpv v0.17.0"
+  :group 'emms-simple-player-mpv
+  :type '(choice (const :tag "Set automatically" nil)
+                 (const :tag "mpv v0.17.0 or later" "--input-ipc-server")
+                 (const :tag "mpv v0.7.0 to v0.16.0 " "--input-unix-socket")))
+
+;;;###autoload
+(defun emms-player-simple-mpv-get-version ()
+  "Return mpv version."
+  (with-temp-buffer
+    (unless (zerop (call-process "mpv" nil t "--verison"))
+      (error "Failed to get mpv version"))
+    (goto-char (point-min))
+    (if (re-search-forward
+         "^mpv\\s-+\\(\\([0-9]+\\.\\)\\{2\\}[0-9]+\\)[^0-9]" nil t)
+        (match-string-no-properties 1)
+      (error "Failed to get mpv version"))))
+
+(defun emms-player-simple-mpv-get-ipc-option-name ()
+  "Return ipc option name."
+  (if (version< (emms-player-simple-mpv-get-version) "0.17.0")
+      "--input-unix-socket"
+    "--input-ipc-server"))
+
+(defcustom emms-player-simple-mpv-ipc-dir nil
+  "Directory name for IPC.
+If nil, `temporary-file-directory' will be used."
+  :group 'emms-simple-player-mpv
+  :type '(choice (const :tag "Use `temporary-file-directory'." nil)
+                 (directory :tag "Directory name.")))
+
+(defvar emms-player-simple-mpv-ipc-fname-prefix "mpv--socket"
+  "File name prefix for IPC.
+This variable will used with `make-temp-name'.")
 
 (defcustom emms-player-simple-mpv-use-volume-change-function-p t
   "If non-nil, `emms-player-simple-mpv-volume-change' is used as `emms-volume-change-function'."
@@ -136,10 +174,14 @@
 (add-hook 'emms-player-simple-mpv-tq-event-speed-functions
           (lambda (speed) (setq emms-player-simple-mpv-last-speed speed)))
 
+(defcustom emms-player-simple-mpv-tq-event-length-functions nil
+  "Abnormal hook run with one argument which is length.")
+
 (defcustom emms-player-simple-mpv-tq-event-property-change-functions-alist
   (list '("filename" . emms-player-simple-mpv-tq-event-filename-functions)
         '("volume" . emms-player-simple-mpv-tq-event-volume-functions)
-        '("speed" . emms-player-simple-mpv-tq-event-speed-functions))
+        '("speed" . emms-player-simple-mpv-tq-event-speed-functions)
+        '("length" . emms-player-simple-mpv-tq-event-length-functions))
   "Alist of property name and abnormal hook.
 Abnormal hook run with one argument for data
 when TQ process receives \"property-change\" from mpv."
@@ -171,8 +213,7 @@ The function takes no arguments and returns boolean."
 (defun emms-player-simple-mpv-last-volume-available-p ()
   "Retrun t if `emms-player-simple-mpv-last-volume' is available."
   (and (numberp emms-player-simple-mpv-last-volume)
-       (<= 0 emms-player-simple-mpv-last-volume)
-       (<= emms-player-simple-mpv-last-volume 100)))
+       (<= 0 emms-player-simple-mpv-last-volume)))
 
 (define-minor-mode emms-player-simple-mpv-keep-speed-mode
   "Last speed value is used when new track starts."
@@ -253,11 +294,13 @@ Only track type of file is available."
   "emms-player-simple-mpv-tq-process")
 
 (defvar emms-player-simple-mpv--socket
-  (expand-file-name (make-temp-name "mpv--socket") temporary-file-directory))
+  (expand-file-name (make-temp-name emms-player-simple-mpv-ipc-fname-prefix)
+                    (or emms-player-simple-mpv-ipc-dir temporary-file-directory)))
 
 (defun emms-player-simple-mpv--socket ()
   (setq emms-player-simple-mpv--socket
-        (expand-file-name (make-temp-name "mpv--socket") temporary-file-directory)))
+        (expand-file-name (make-temp-name emms-player-simple-mpv-ipc-fname-prefix)
+                          (or emms-player-simple-mpv-ipc-dir temporary-file-directory))))
 
 (defun emms-player-simple-mpv--tq-create ()
   (tq-create (make-network-process
@@ -285,7 +328,8 @@ Only track type of file is available."
       (with-current-buffer buffer
         (goto-char (point-max))
         (insert string)
-        (emms-player-simple-mpv--tq-process-buffer tq)))))
+        (when (and (eobp) (bolp))
+         (emms-player-simple-mpv--tq-process-buffer tq))))))
 
 (defun emms-player-simple-mpv--tq-process-buffer (tq)
   "Check TQ's buffer at the head of the queue.
@@ -294,19 +338,19 @@ See tq.el."
     (while (and (buffer-live-p buffer) (set-buffer buffer) (> (buffer-size) 0))
       (goto-char (point-min))
       (let* ((answer-ls (ignore-errors (json-read)))
-             (point (point))
+             (point (if (re-search-forward "{" nil t)
+                        (goto-char (match-beginning 0))
+                      (point)))
              (fn (tq-queue-head-fn tq))
              (closure (tq-queue-head-closure tq))
-             (event (emms-player-simple-mpv-tq-assq-v 'event answer-ls)))
+             (event (and (listp answer-ls)
+                         (emms-player-simple-mpv-tq-assq-v 'event answer-ls))))
         (delete-region (point-min)
-                       (if (or answer-ls (eobp) (ignore-errors (json-read)))
-                           point (point-max)))
-        (when answer-ls
-          (if event (emms-player-simple-mpv--tq-event-action event answer-ls)
-            (when fn
-              (unwind-protect
-                  (ignore-errors (funcall fn closure answer-ls))
-                (tq-queue-pop tq)))))))))
+                       (if (ignore-errors (json-read)) point (point-max)))
+        (if event (emms-player-simple-mpv--tq-event-action event answer-ls)
+          (unwind-protect
+              (when fn (ignore-errors (funcall fn closure answer-ls)))
+            (tq-queue-pop tq)))))))
 
 (defun emms-player-simple-mpv-playing-p ()
   "Return t when `emms-player-simple-mpv--tq' process is open."
@@ -497,19 +541,20 @@ TYPES is type list or t.
 FN takes track-name as an argument."
   (let ((converters (emms-player-get player 'mpv-track-name-converters))
         (converter (list regexp types fn)))
-    (if (cl-find regexp converters :key #'car :test #'equal)
-        converters
+    (unless (cl-find converter converters :test #'equal)
       (emms-player-set player 'mpv-track-name-converters
                        (if appendp
                            (nconc converters (list converter))
-                         (cons converter converters))))))
+                         (cons converter converters))))
+    (emms-player-get player 'mpv-track-name-converters)))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-remove-converter (player regexp)
   "Remove the converter from PLAYER's mpv-track-name-converters which has REGEXP."
   (let ((converters (emms-player-get player 'mpv-track-name-converters)))
     (emms-player-set player 'mpv-track-name-converters
-                     (cl-delete regexp converters :key #'car :test #'equal))))
+                     (cl-delete regexp converters :key #'car :test #'equal))
+    (emms-player-get player 'mpv-track-name-converters)))
 
 (defun emms-player-simple-mpv--track-to-input-form (track track-name-converters)
   "Convert TRACK to mpv input form by TRACK-NAME-CONVERTERS."
@@ -557,12 +602,22 @@ FN takes track-name as an argument."
                                        params)))))
   params)
 
+(defun emms-player-simple-mpv--socket-wait-file (process fname)
+  "Wait for PROCESS's socket FNAME."
+  (while (and (eq (process-status process) 'run)
+              (not (file-exists-p fname)))
+    (sit-for 0.05)))
+
 ;;;###autoload
 (defun emms-player-simple-mpv-start (track player cmdname params)
   "Emulate `emms-player-simple-start' but the first arg."
+  (unless emms-player-simple-mpv-ipc-option-name
+    (setq emms-player-simple-mpv-ipc-option-name
+          (emms-player-simple-mpv-get-ipc-option-name)))
   (emms-player-simple-mpv--start-initialize)
   (let* ((input-socket
-          (format "--input-unix-socket=%s" (emms-player-simple-mpv--socket)))
+          (format "%s=%s" emms-player-simple-mpv-ipc-option-name
+                  (emms-player-simple-mpv--socket)))
          (input-form
           (emms-player-simple-mpv--track-to-input-form
            track (emms-player-get player 'mpv-track-name-converters)))
@@ -575,9 +630,8 @@ FN takes track-name as an argument."
     (emms-player-started player)
     (setq emms-player-paused-p t)
     (run-hooks 'emms-player-paused-hook)
-    (while (and (eq (process-status process) 'run)
-                (not (file-exists-p emms-player-simple-mpv--socket)))
-      (sit-for 0.05))
+    (emms-player-simple-mpv--socket-wait-file process
+                                              emms-player-simple-mpv--socket)
     (condition-case err
         (setq emms-player-simple-mpv--tq (emms-player-simple-mpv--tq-create))
       (error (message "%s" (error-message-string err))
@@ -611,16 +665,18 @@ FN takes track-name as an argument."
     nil
     (lambda (_ ans-ls)
       (if (emms-player-simple-mpv-tq-success-p ans-ls)
-          (message (format "mpv %s : %s" msg spec) (funcall fn value))
-        (message "mpv %s : error" err-msg)))))
+          (when msg
+            (message (format "mpv %s : %s" msg spec) (funcall fn value)))
+        (when err-msg
+          (message "mpv %s : error" err-msg))))))
 
 ;;;###autoload
 (cl-defun emms-player-simple-mpv-set_property
     (property value &key (spec "%s") (msg property) (err-msg property) (fn #'identity))
   "Set PROPERTY to VALUE.
 :SPEC is a format specification for VALUE.
-:MSG is displayed when command succeeds.
-:ERR-MSG is displayed when command fails.
+:MSG is displayed when command succeeds. If nil, it will be ignored.
+:ERR-MSG is displayed when command fails. If nil, it will be ignored.
 :FN takes VALUE as an argument."
   (emms-player-simple-mpv--set_property-1 "set_property"))
 
@@ -629,8 +685,8 @@ FN takes track-name as an argument."
     (property value &key (spec "%s") (msg property) (err-msg property) (fn #'identity))
   "Set PROPERTY to VALUE.
 :SPEC is a format specification for VALUE.
-:MSG is displayed when command succeeds.
-:ERR-MSG is displayed when command fails.
+:MSG is displayed when command succeeds. If nil, it will be ignored.
+:ERR-MSG is displayed when command fails. If nil, it will be ignored.
 :FN takes VALUE as an argument."
   (emms-player-simple-mpv--set_property-1 "set_property_string"))
 
@@ -724,11 +780,9 @@ ANS-LS includes data value."
   (if (emms-player-simple-mpv-tq-success-p ans-ls)
       (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
              (data+ (round (+ data v)))
-             (vol (cond
-                   ((< data+ 0) 0)
-                   ((> data+ 100) 100)
-                   (t data+))))
-        (emms-player-simple-mpv-set_property "volume" vol))
+             (vol (if (< data+ 0) 0 data+)))
+        (emms-player-simple-mpv-set_property
+         "volume" vol :err-msg (format ": set volume to %s" vol)))
     (message "mpv volume : error")))
 
 ;;;###autoload

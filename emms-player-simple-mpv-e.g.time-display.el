@@ -1,7 +1,8 @@
 ;;; emms-player-simple-mpv-e.g.time-display.el --- A setting example of TQ event hooks -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015 momomo5717
+;; Copyright (C) 2015-2016 momomo5717
 
+;; Author: momomo5717
 ;; URL: https://github.com/momomo5717/
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -29,8 +30,11 @@
 (require 'emms-mode-line)
 (require 'emms-playing-time)
 
-(defvar emms-mode-line-cycle) ; Suppres a warning message.
+(defvar emms-mode-line-cycle) ; Suppress a warning message.
+(defvar emms-state-mode)
+(declare-function emms-state-set-total-playing-time "ext:emms-state")
 
+;; Update playing-time
 (defun emms-player-simple-mpv-reset-playing-time-display-timer (&optional speed)
   "Reset `emms-playing-time'.
 SPEED is a mpv property of speed."
@@ -38,8 +42,11 @@ SPEED is a mpv property of speed."
    '("get_property" "time-pos")
    (float-time)
    (lambda (sent-time ans-ls)
-     (let ((time (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
-       (when (and (emms-player-simple-mpv-playing-p) (numberp time))
+     (let ((time (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+           (update-fn (cond ((bound-and-true-p emms-state-mode) 'emms-state-playing-time-step)
+                            (emms-playing-time-p 'emms-playing-time-display))))
+       (when (and (emms-player-simple-mpv-playing-p) (numberp time)
+                  (functionp update-fn))
          (when emms-playing-time-display-timer
            (emms-cancel-timer emms-playing-time-display-timer)
            (setq emms-playing-time-display-timer nil))
@@ -47,7 +54,7 @@ SPEED is a mpv property of speed."
            (setq time (+ time (- (float-time) sent-time))))
          (setq emms-playing-time (1- (floor time)))
          (let (emms-mode-line-cycle)
-           (emms-playing-time-display))
+           (funcall update-fn))
          (force-mode-line-update t)
          (unless emms-player-paused-p
            (setq speed (or (and (numberp speed)
@@ -58,10 +65,10 @@ SPEED is a mpv property of speed."
                  (if speed
                      (run-at-time (/ (- 1.0 (- time (ffloor time))) speed)
                                   (/ 1.0 speed)
-                                  'emms-playing-time-display)
+                                  update-fn)
                    (run-at-time (- 1.0 (- time  (ffloor time)))
                                 1.0
-                                'emms-playing-time-display)))))))))
+                                update-fn)))))))))
 
 (add-hook 'emms-player-simple-mpv-tq-event-unpause-hook
           'emms-player-simple-mpv-reset-playing-time-display-timer)
@@ -71,6 +78,23 @@ SPEED is a mpv property of speed."
 
 (add-hook 'emms-player-simple-mpv-tq-event-speed-functions
           'emms-player-simple-mpv-reset-playing-time-display-timer)
+
+;; Update info-playing-time
+(defvar emms-player-simple-mpv-info-playing-time-ignore-types nil
+  "List of type.")
+
+(defun emms-player-simple-mpv-set-info-playing-time (length)
+  "Set info-playing-time to LENGTH."
+  (when (and  (numberp length)
+              (not (memq (emms-track-type (emms-playlist-current-selected-track))
+                         emms-player-simple-mpv-info-playing-time-ignore-types)))
+    (emms-track-set
+     (emms-playlist-current-selected-track)
+     'info-playing-time (floor length))
+    (when (bound-and-true-p emms-state-mode) (emms-state-set-total-playing-time))))
+
+(add-hook 'emms-player-simple-mpv-tq-event-length-functions
+          'emms-player-simple-mpv-set-info-playing-time)
 
 (provide 'emms-player-simple-mpv-e.g.time-display)
 ;;; emms-player-simple-mpv-e.g.time-display.el ends here
