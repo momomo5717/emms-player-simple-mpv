@@ -3,7 +3,7 @@
 ;; Copyright (C) 2015-2016 momomo5717
 
 ;; Keywords: emms, mpv
-;; Version: 0.3.0
+;; Version: 0.4.0
 ;; Package-Requires: ((emacs "24") (cl-lib "0.5") (emms "4.0"))
 ;; Author: momomo5717
 ;; URL: https://github.com/momomo5717/emms-player-simple-mpv
