@@ -195,6 +195,94 @@ Set playlist-pos to N."
                    (emms-player-simple-mpv-tq-assq-v 'data ans-ls))))
        (message "mpv playlist position : error")))))
 
+(defun emms-player-simple-mpv--with-playlist-pos (fn)
+  "Run FN with playlist-pos data."
+  (emms-player-simple-mpv-tq-enqueue
+   '("get_property" "playlist-pos")
+   nil
+   (lambda (_ ans-ls)
+     (if (emms-player-simple-mpv-tq-success-p ans-ls)
+         (funcall fn (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+       (message "mpv playlist-pos : %s"
+                (emms-player-simple-mpv-tq-assq-v 'error ans-ls))))))
+
+(defun emms-player-simple-mpv--playlist (&optional p1 p2 fn)
+  "Display playlist/P1/P2.
+Run FN with data, if non-nil."
+  (let ((com (mapconcat (lambda (p) (format "%s" p))
+                        (delete nil (list "playlist" p1 p2))
+                        "/")))
+    (emms-player-simple-mpv-tq-enqueue
+     `("get_property" ,com)
+     com
+     (lambda (com ans-ls)
+       (if (emms-player-simple-mpv-tq-success-p ans-ls)
+           (if fn (funcall fn (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+             (message "mpv %s : %s" com (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+         (message "mpv %s : %s" com (emms-player-simple-mpv-tq-assq-v 'error ans-ls)))))))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-nth-title (n)
+  "Display title of N th entry.
+N is 0-base"
+  (interactive "nInput playlist position: ")
+  (emms-player-simple-mpv--playlist n "title"))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-current-title ()
+  "Display title of the current entry."
+  (interactive)
+  (emms-player-simple-mpv--with-playlist-pos
+   (lambda (n) (emms-player-simple-mpv--playlist n "title"))))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-nth-filename (n)
+  "Display filename of N th entry.
+N is 0-base."
+  (interactive "nInput playlist position: ")
+  (emms-player-simple-mpv--playlist n "filename"))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-current-filename ()
+  "Display title current entry."
+  (interactive)
+  (emms-player-simple-mpv--with-playlist-pos
+   (lambda (n) (emms-player-simple-mpv--playlist n "filename"))))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-move (index1 index2)
+  "Run playlist-move INDEX1 INDEX2."
+  (interactive "nInput index1: \nnInput index2: ")
+  (emms-player-simple-mpv-tq-enqueue
+   `("playlist-move" ,index1 ,index2) nil
+   (emms-player-simple-mpv-tq-error-message
+    (format "mpv playlist-move: %s %s : %%s" index1 index2))))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-shuffle ()
+  "Run playlist-shuffle."
+  (interactive)
+  (emms-player-simple-mpv-tq-enqueue
+   '("playlist-shuffle") nil
+   (emms-player-simple-mpv-tq-error-message "mpv playlist-shuffle: %s")))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-remove-current ()
+  "Run playlist-remove current."
+  (interactive)
+  (emms-player-simple-mpv-tq-enqueue
+   '("playlist-remove" "current") nil
+   (emms-player-simple-mpv-tq-error-message "mpv playlist-remove current: %s")))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-remove-index (index)
+  "Run playlist-remove INDEX."
+  (interactive "nInput index: ")
+  (emms-player-simple-mpv-tq-enqueue
+   `("playlist-remove" ,index) nil
+   (emms-player-simple-mpv-tq-error-message
+    (format "mpv playlist-remove %s : %%s" index))))
+
 ;;;###autoload
 (defun emms-player-simple-mpv-speed-to (v)
   "Set speed to V."
