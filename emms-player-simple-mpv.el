@@ -34,7 +34,7 @@
 ;;
 ;; Other Requirements:
 ;;
-;;   + mpv v0.7 or later
+;;   + mpv v0.10.0 or later
 ;;   + Unix Sockets
 ;;
 ;; Setup:
@@ -290,6 +290,12 @@ Only track type of file is available."
 (defvar emms-player-simple-mpv--tq nil
   "TQ process.")
 
+(defvar emms-player-simple-mpv--tq-id-counter 0
+  "Counter for request_id.")
+
+(defvar emms-player-simple-mpv--tq-hash (make-hash-table)
+  "Key: request_id, Value: \(closure . fn).")
+
 (defvar emms-player-simple-mpv-tq-process-name
   "emms-player-simple-mpv-tq-process")
 
@@ -303,6 +309,8 @@ Only track type of file is available."
                           (or emms-player-simple-mpv-ipc-dir temporary-file-directory))))
 
 (defun emms-player-simple-mpv--tq-create ()
+  (setq emms-player-simple-mpv--tq-id-counter 0)
+  (setq emms-player-simple-mpv--tq-hash (make-hash-table))
   (tq-create (make-network-process
               :name emms-player-simple-mpv-tq-process-name
               :family 'local
@@ -333,7 +341,7 @@ Only track type of file is available."
 
 (defun emms-player-simple-mpv--tq-process-buffer (tq)
   "Check TQ's buffer at the head of the queue.
-See tq.el."
+See `tq-process-buffer'."
   (let ((buffer (tq-buffer tq)))
     (while (and (buffer-live-p buffer) (set-buffer buffer) (> (buffer-size) 0))
       (goto-char (point-min))
@@ -341,16 +349,21 @@ See tq.el."
              (point (if (re-search-forward "{" nil t)
                         (goto-char (match-beginning 0))
                       (point)))
-             (fn (tq-queue-head-fn tq))
-             (closure (tq-queue-head-closure tq))
+             (request_id (emms-player-simple-mpv-tq-assq-v 'request_id answer-ls))
+             (hash-v (when request_id (gethash request_id emms-player-simple-mpv--tq-hash)))
+             (closure (car hash-v))
+             (fn (cdr hash-v))
              (event (and (listp answer-ls)
                          (emms-player-simple-mpv-tq-assq-v 'event answer-ls))))
         (delete-region (point-min)
                        (if (ignore-errors (json-read)) point (point-max)))
         (if event (emms-player-simple-mpv--tq-event-action event answer-ls)
           (unwind-protect
-              (when fn (ignore-errors (funcall fn closure answer-ls)))
-            (tq-queue-pop tq)))))))
+              (when fn (condition-case err
+                           (funcall fn closure answer-ls)
+                         (error (message "Error: mpv tq-process-buffer : %s"
+                                         (error-message-string err)))))
+            (remhash request_id emms-player-simple-mpv--tq-hash)))))))
 
 (defun emms-player-simple-mpv-playing-p ()
   "Return t when `emms-player-simple-mpv--tq' process is open."
@@ -363,24 +376,33 @@ See tq.el."
   "Clear tq-enque if it remains."
   (interactive)
   (when emms-player-simple-mpv--tq
-   (let ((buffer (tq-buffer emms-player-simple-mpv--tq)))
-     (setcar emms-player-simple-mpv--tq nil)
-     (when (buffer-live-p buffer)
-       (with-current-buffer buffer
-         (delete-region (point-min) (point-max)))))))
+    (let ((buffer (tq-buffer emms-player-simple-mpv--tq)))
+      (setcar emms-player-simple-mpv--tq nil)
+      (setq emms-player-simple-mpv--tq-id-counter 0)
+      (setq emms-player-simple-mpv--tq-hash (make-hash-table))
+      (when (buffer-live-p buffer)
+        (with-current-buffer buffer
+          (delete-region (point-min) (point-max)))))))
 
-(defun emms-player-simple-mpv--tq-make-command (com &rest params)
-  "Build JSON command from COM and PARAMS."
-  (concat (json-encode `(("command" . (,com ,@params)))) "\n"))
+(defun emms-player-simple-mpv--tq-make-command (com-ls id)
+  "Build JSON command from COM-LS and request ID.
+`emms-player-simple-mpv--tq-id-counter' will be used as request_id."
+  (concat (json-encode `(("command" . ,com-ls) ("request_id" . ,id)))
+          "\n"))
 
 ;;;###autoload
-(defun emms-player-simple-mpv-tq-enqueue
-    (com-ls closure fn &optional delay-question)
-  "Wrapper function of `tq-enqueue'."
+(defun emms-player-simple-mpv-tq-enqueue (com-ls closure fn)
+  "Work like `tq-enqueue' except for using a hash table.
+COM-LS is a list of a command name and params.
+CLOSURE will be used as a first arg for FN.
+FN will take CLOSURE and a parsed json object \(alist) after receiveing a reply."
   (when (emms-player-simple-mpv-playing-p)
-    (tq-enqueue emms-player-simple-mpv--tq
-                (apply #'emms-player-simple-mpv--tq-make-command com-ls)
-                "" closure fn delay-question)))
+    (cl-incf emms-player-simple-mpv--tq-id-counter)
+    (puthash emms-player-simple-mpv--tq-id-counter (cons closure fn)
+             emms-player-simple-mpv--tq-hash)
+    (process-send-string (tq-process emms-player-simple-mpv--tq)
+                         (funcall #'emms-player-simple-mpv--tq-make-command
+                                  com-ls emms-player-simple-mpv--tq-id-counter))))
 
 (defun emms-player-simple-mpv-tq-success-p (ans)
   "Check command response from ANS."
