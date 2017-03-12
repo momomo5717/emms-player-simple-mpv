@@ -680,37 +680,41 @@ FN takes track-name as an argument."
              (push (cons name id) emms-player-simple-mpv--observe_property-name-als)
            (message "mpv : Failed to set \"observe_property\" of %s" name)))))))
 
-(defmacro emms-player-simple-mpv--set_property-1 (command)
-  "Helper macro emms-player-simple-mpv-set_property\(_string\)."
-  `(emms-player-simple-mpv-tq-enqueue
-    (list ,command property value)
-    nil
-    (lambda (_ ans-ls)
-      (if (emms-player-simple-mpv-tq-success-p ans-ls)
-          (when msg
-            (message (format "mpv %s : %s" msg spec) (funcall fn value)))
-        (when err-msg
-          (message "mpv %s : error" err-msg))))))
+(defun emms-player-simple-mpv--set_property-1
+    (com property value spec msg err-msg fn)
+  "Helper function for emms-player-simple-mpv-set_property\(_string\)."
+  (emms-player-simple-mpv-tq-enqueue
+   (list com property value) nil
+   (lambda (_ ans-ls)
+     (if (emms-player-simple-mpv-tq-success-p ans-ls)
+         (if msg
+             (message (format "mpv %s : %s" msg spec)
+                      (if fn (funcall fn value) value))
+           (when fn (funcall fn value)))
+       (when err-msg
+         (message "mpv %s : %s" err-msg (cdr (assq 'error ans-ls))))))))
 
 ;;;###autoload
 (cl-defun emms-player-simple-mpv-set_property
     (property value &key (spec "%s") (msg property) (err-msg property) (fn #'identity))
-  "Set PROPERTY to VALUE.
+  "Set PROPERTY to VALUE via set_property.
 :SPEC is a format specification for VALUE.
 :MSG is displayed when command succeeds. If nil, it will be ignored.
 :ERR-MSG is displayed when command fails. If nil, it will be ignored.
-:FN takes VALUE as an argument."
-  (emms-player-simple-mpv--set_property-1 "set_property"))
+:FN takes VALUE as an argument. Its returned value will be used for :SPEC if :MSG is non-nil."
+  (emms-player-simple-mpv--set_property-1
+   "set_property" property value spec msg err-msg fn))
 
 ;;;###autoload
 (cl-defun emms-player-simple-mpv-set_property_string
     (property value &key (spec "%s") (msg property) (err-msg property) (fn #'identity))
-  "Set PROPERTY to VALUE.
+  "Set PROPERTY to VALUE via property_string.
 :SPEC is a format specification for VALUE.
 :MSG is displayed when command succeeds. If nil, it will be ignored.
 :ERR-MSG is displayed when command fails. If nil, it will be ignored.
-:FN takes VALUE as an argument."
-  (emms-player-simple-mpv--set_property-1 "set_property_string"))
+:FN takes VALUE as an argument. Its returned value will be used for :SPEC if :MSG is non-nil."
+  (emms-player-simple-mpv--set_property-1
+   "set_property_string" property value spec msg err-msg fn))
 
 (defsubst emms-player-simple-mpv--time-string (sec)
   "SEC to \"%02h:%02m:%02s\"."
