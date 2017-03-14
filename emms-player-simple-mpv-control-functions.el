@@ -402,12 +402,10 @@ If N is less than 1, set loop to \"inf\"."
 ;;;###autoload
 (defun emms-player-simple-mpv-loop-file-to (n)
   "Set loop-file to N.
-If N is less than 1, set loop-file to \"inf\"."
+If N is less than 0, set loop-file to \"inf\"."
   (interactive "nmpv loop-file to : ")
   (emms-player-simple-mpv-set_property
-   "loop-file" (cond ((< n 1) "inf")
-                     ((= n 1) "no")
-                     (t n))
+   "loop-file" (if (< n 0) "inf" n)
    :fn (lambda (v) (if (numberp v) (format "%s times" v) v))))
 
 ;;;###autoload
