@@ -75,7 +75,7 @@
 (require 'tq)
 (require 'later-do)
 
-(defconst emms-player-simple-mpv-version "0.3.0")
+(defconst emms-player-simple-mpv-version "0.4.0")
 
 (defgroup emms-simple-player-mpv nil
   "An extension of emms-simple-player.el."
