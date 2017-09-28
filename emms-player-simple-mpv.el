@@ -60,6 +60,17 @@
 ;;
 ;; (add-to-list 'emms-player-list 'emms-player-my-mpv)
 ;;
+;; ;; Playing YouTube playlist in reverse order.
+;; `emms-player-my-mpv-ytpl-reverse' will be defined in this case.
+;; (define-emms-simple-player-mpv my-mpv-ytpl-reverse '(url)
+;;   "\\`http[s]://www\\.youtube\\.com/playlist\\?list="
+;;   "mpv" "--no-terminal" "--force-window=no" "--audio-display=no"
+;;   "--ytdl" "--ytdl-raw-options=playlist-reverse=")
+;;
+;; (add-to-list 'emms-player-list 'emms-player-my-mpv-ytpl-reverse)
+;;
+;; ;; M-x emms-player-simple-mpv-playlist-popup can display playlist
+;;
 ;; The following example configuration files are available:
 ;;
 ;;   + emms-player-simple-mpv-e.g.time-display.el
