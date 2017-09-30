@@ -1,6 +1,6 @@
 ;;; emms-player-simple-mpv-e.g.hydra.el --- A setting example for hydra -*- lexical-binding: t; no-byte-compile: t -*-
 
-;; Copyright (C) 2015-2016 momomo5717
+;; Copyright (C) 2015-2017 momomo5717
 
 ;; Author: momomo5717
 ;; URL: https://github.com/momomo5717/

@@ -1,6 +1,6 @@
 ;;; emms-player-simple-mpv-control-functions.el --- functions to control mpv via emms-player-simple-mpv.el -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2016 momomo5717
+;; Copyright (C) 2015-2017 momomo5717
 
 ;; Author: momomo5717
 ;; URL: https://github.com/momomo5717/emms-player-simple-mpv
