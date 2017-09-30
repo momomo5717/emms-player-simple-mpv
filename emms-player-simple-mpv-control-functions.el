@@ -47,22 +47,23 @@
   (interactive "nmpv seek to (%%) : ")
   (setq per (cond ((< per 0) 0) ((> per 100) 100) (t per)))
   (emms-player-simple-mpv-tq-enqueue
-   '("get_property" "length")
+   '("get_property" "duration")
    per
    (lambda (per ans-ls)
-     (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
-                (total-time (emms-player-simple-mpv--time-string data))
-                (pos  (floor (* per data) 100))
-                (time (emms-player-simple-mpv--time-string pos)))
-           (emms-player-simple-mpv-tq-enqueue
-            (list "seek" per "absolute-percent")
-            (format "mpv seek to (%%%%) : %.1f (%s / %s)" per time total-time)
-            (lambda (form ans-ls)
-              (if (emms-player-simple-mpv-tq-success-p ans-ls)
-                  (message form)
-                (message "mpv seek to (%%) : error")))))
-       (message "mpv seek to (%%) : error")))))
+     (let ((successp (emms-player-simple-mpv-tq-success-p ans-ls) )
+           (data (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+       (if (and successp (numberp data) (> data 0.0))
+           (let* ((total-time (emms-player-simple-mpv--time-string data))
+                  (pos  (floor (* per data) 100))
+                  (time (emms-player-simple-mpv--time-string pos)))
+             (emms-player-simple-mpv-tq-enqueue
+              (list "seek" per "absolute-percent")
+              (format "mpv seek to (%%%%) : %.1f (%s / %s)" per time total-time)
+              (lambda (form ans-ls)
+                (if (emms-player-simple-mpv-tq-success-p ans-ls)
+                    (message form)
+                  (message "mpv seek to (%%) : error")))))
+         (message "mpv seek to (%%) : error"))))))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-volume-to (v)
@@ -99,7 +100,7 @@
     "mpv time position : %s" :err-form "mpv time position : error"
     :fn #'emms-player-simple-mpv--time-string)))
 
-(defun emms-player-simple-mpv-time-pos-%-1 (form length)
+(defun emms-player-simple-mpv-time-pos-%-1 (form duration)
   "Helper function for `emms-player-simple-mpv-time-pos-%'."
   (emms-player-simple-mpv-tq-enqueue
    '("get_property" "percent-pos")
@@ -107,22 +108,23 @@
    (emms-player-simple-mpv-tq-data-message
     "%s" :err-form "mpv time position (%%) : error"
     :fn (lambda (data)
-          (format form data (emms-player-simple-mpv--time-string (/ (* data length) 100.0)))))))
+          (format form data (emms-player-simple-mpv--time-string (/ (* data duration) 100.0)))))))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-time-pos-% ()
   "Display position (0-100) in current file."
   (interactive)
   (emms-player-simple-mpv-tq-enqueue
-   '("get_property" "length")
+   '("get_property" "duration")
    nil
    (lambda (_ ans-ls)
-     (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
-                (form "mpv time position (%%%%) : %%.1f (%%s / %s)")
-                (form (format form (emms-player-simple-mpv--time-string data))))
-           (emms-player-simple-mpv-time-pos-%-1 form data))
-       (message "mpv time position (%%) : error")))))
+     (let ((successp (emms-player-simple-mpv-tq-success-p ans-ls))
+           (data (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+       (if (and successp (numberp data) (> data 0.0))
+           (let* ((form "mpv time position (%%%%) : %%.1f (%%s / %s)")
+                  (form (format form (emms-player-simple-mpv--time-string data))))
+             (emms-player-simple-mpv-time-pos-%-1 form data))
+         (message "mpv time position (%%) : error"))))))
 
 (defmacro emms-player-simple-mpv--playlist-change-1 (str)
   "Helper macro for emms-player-simple-mpv--playlist-next/prev."

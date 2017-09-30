@@ -185,14 +185,20 @@ This variable will used with `make-temp-name'.")
 (add-hook 'emms-player-simple-mpv-tq-event-speed-functions
           (lambda (speed) (setq emms-player-simple-mpv-last-speed speed)))
 
-(defcustom emms-player-simple-mpv-tq-event-length-functions nil
-  "Abnormal hook run with one argument which is length.")
+(defcustom emms-player-simple-mpv-tq-event-duration-functions nil
+  "Abnormal hook run with one argument which is duration."
+  :group 'emms-simple-player-mpv
+  :type 'hook)
+
+(define-obsolete-variable-alias 'emms-player-simple-mpv-tq-event-length-functions
+  'emms-player-simple-mpv-tq-event-duration-functions
+  "20170930")
 
 (defcustom emms-player-simple-mpv-tq-event-property-change-functions-alist
   (list '("filename" . emms-player-simple-mpv-tq-event-filename-functions)
         '("volume" . emms-player-simple-mpv-tq-event-volume-functions)
         '("speed" . emms-player-simple-mpv-tq-event-speed-functions)
-        '("length" . emms-player-simple-mpv-tq-event-length-functions))
+        '("duration" . emms-player-simple-mpv-tq-event-duration-functions))
   "Alist of property name and abnormal hook.
 Abnormal hook run with one argument for data
 when TQ process receives \"property-change\" from mpv."
@@ -775,7 +781,7 @@ FN takes track-name as an argument."
 
 (defun emms-player-simple-mpv--seek-2 (sec)
   "Helper funcion for `emms-player-simple-mpv-seek'.
-For a track which does not have length property."
+For a track which does not have duration property."
   (emms-player-simple-mpv-tq-enqueue
    (list "seek" sec "relative")
    nil
@@ -786,16 +792,17 @@ For a track which does not have length property."
 (defun emms-player-simple-mpv-seek (sec)
   "Seek by SEC."
   (emms-player-simple-mpv-tq-enqueue
-   '("get_property" "length")
+   '("get_property" "duration")
    sec
    (lambda (sec ans-ls)
-     (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (let ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+     (let ((successp (emms-player-simple-mpv-tq-success-p ans-ls))
+           (data (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+       (if (and successp (numberp data) (> data 0.0))
            (emms-player-simple-mpv-tq-enqueue
             '("get_property" "time-pos")
             `((sec . ,sec) (len . ,data))
-            'emms-player-simple-mpv--seek-1))
-       (emms-player-simple-mpv--seek-2 sec)))))
+            'emms-player-simple-mpv--seek-1)
+         (emms-player-simple-mpv--seek-2 sec))))))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-seek-to (sec)
