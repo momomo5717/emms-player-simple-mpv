@@ -14,24 +14,50 @@
     + emms-player-simple-mpv-e.g.playlist-fname.el
     + emms-player-simple-mpv-e.g.hydra.el
 
-** Table of contents
-
-  + [[#requirements][Requirements]]
-  + [[#setup][Setup]]
-  + [[#usage][Usage]]
-  + [[#customization][Customization]]
-  + [[#example-configuration-files][Example configuration files]]
-  + [[#some-examples-of-defining-specific-emms-simple-players-of-mpv][Some examples of defining specific emms simple players of mpv]]
-  + [[#references][References]]
+** Table of contents :toc_4:
+- [[#emms-player-simple-mpv][emms-player-simple-mpv]]
+  - [[#requirements][Requirements]]
+  - [[#setup][Setup]]
+  - [[#usage][Usage]]
+  - [[#customization][Customization]]
+      - [[#macro-define-emms-simple-player-mpv-name-types-regex-command-rest-args][Macro: =define-emms-simple-player-mpv= /name/ /types/ /regex/ /command/ /&rest/ /args/ ]]
+      - [[#function-emms-player-simple-mpv-add-to-converters-player-regexp-types-fn-optional-appendp][Function: =emms-player-simple-mpv-add-to-converters= /player/ /regexp/ /types/ /fn/ /&optional/ /appendp/ ]]
+      - [[#user-option-emms-player-simple-mpv-use-volume-change-function-p][User Option: =emms-player-simple-mpv-use-volume-change-function-p= ]]
+      - [[#minor-mode-emms-player-simple-mpv-keep-volume-mode][Minor Mode: =emms-player-simple-mpv-keep-volume-mode= ]]
+      - [[#minor-mode-emms-player-simple-mpv-keep-speed-mode][Minor Mode: =emms-player-simple-mpv-keep-speed-mode= ]]
+      - [[#user-option-emms-player-simple-mpv-keep-properties][User Option: =emms-player-simple-mpv-keep-properties= ]]
+      - [[#user-option-emms-player-simple-mpv-ipc-dir][User Option: =emms-player-simple-mpv-ipc-dir= ]]
+      - [[#user-option-emms-player-simple-mpv-tq-event-pause-hook][User Option: =emms-player-simple-mpv-tq-event-pause-hook= ]]
+      - [[#user-option-emms-player-simple-mpv-tq-event-unpause-hook][User Option: =emms-player-simple-mpv-tq-event-unpause-hook= ]]
+      - [[#user-option-emms-player-simple-mpv-tq-event-playback-restart-hook][User Option: =emms-player-simple-mpv-tq-event-playback-restart-hook= ]]
+      - [[#user-option-emms-player-simple-mpv-tq-event-property-change-functions-alist][User Option: =emms-player-simple-mpv-tq-event-property-change-functions-alist= ]]
+      - [[#user-option-emms-player-simple-mpv-tq-event-filename-functions][User Option: =emms-player-simple-mpv-tq-event-filename-functions= ]]
+      - [[#user-option-emms-player-simple-mpv-tq-event-volume-functions][User Option: =emms-player-simple-mpv-tq-event-volume-functions= ]]
+      - [[#user-option-emms-player-simple-mpv-tq-event-speed-functions][User Option: =emms-player-simple-mpv-tq-event-speed-functions= ]]
+      - [[#user-option-emms-player-simple-mpv-tq-event-duration-functions][User Option: =emms-player-simple-mpv-tq-event-duration-functions= ]]
+  - [[#example-configuration-files][Example configuration files]]
+    - [[#emms-player-simple-mpv-egtime-displayel][emms-player-simple-mpv-e.g.time-display.el]]
+    - [[#emms-player-simple-mpv-egplaylist-fnameel][emms-player-simple-mpv-e.g.playlist-fname.el]]
+    - [[#emms-player-simple-mpv-eghydrael][emms-player-simple-mpv-e.g.hydra.el]]
+    - [[#some-examples-of-defining-specific-emms-simple-players-of-mpv][Some examples of defining specific emms simple players of mpv]]
+  - [[#emms-player-simple-mpv-playlist-mode][emms-player-simple-mpv-playlist-mode]]
+    - [[#setup-1][Setup]]
+    - [[#usage-1][Usage]]
+    - [[#customization-1][Customization]]
+      - [[#user-option-emms-player-simple-mpv-playlist-mode-display-action][User Option: =emms-player-simple-mpv-playlist-mode-display-action= ]]
+      - [[#user-option-emms-player-simple-mpv-playlist-mode-format-function][User Option: =emms-player-simple-mpv-playlist-mode-format-function= ]]
+      - [[#variable-emms-player-simple-mpv-playlist-mode-map][Variable: =emms-player-simple-mpv-playlist-mode-map= ]]
+      - [[#function-emms-player-simple-mpv-playlist-mode-setup-keybinds][Function: =emms-player-simple-mpv-playlist-mode-setup-keybinds= ]]
+  - [[#references][References]]
 
 ** Requirements
 
    + GNU Emacs 24 or later
    + EMMS 4.0 or later
-   + mpv v0.7.0 or later ( [[https://github.com/mpv-player/mpv]] )
+   + mpv v0.10.0 or later ( [[https://github.com/mpv-player/mpv]] )
    + Unix Sockets
 
-   Tested on GNU Emacs 24.5.1 (emacs-mac-app @5.18_0), EMMS 4.0, mpv @0.17.0_2.
+   Tested on GNU Emacs 25.3.1 (emacs-mac-app 6.7_0), EMMS 4.3, mpv v0.26.0.
 
 ** Setup
 
@@ -78,26 +104,39 @@
        (define-key map (kbd ".") 'emms-player-simple-mpv-playlist-next))
    #+END_SRC
 
+   #+BEGIN_SRC elisp
+     ;; Playing YouTube playlist in reverse order.
+     ;; `emms-player-my-mpv-ytpl-reverse' will be defined in this case.
+     (define-emms-simple-player-mpv my-mpv-ytpl-reverse '(url)
+       "\\`http[s]://www\\.youtube\\.com/playlist\\?list="
+       "mpv" "--no-terminal" "--force-window=no" "--audio-display=no"
+       "--ytdl" "--ytdl-raw-options=playlist-reverse=")
+
+     (add-to-list 'emms-player-list 'emms-player-my-mpv-ytpl-reverse)
+   #+END_SRC
+
+   M-x =emms-player-simple-mpv-playlist-popup= can display playlist
+
 ** Customization
 
-*** Macro: =define-emms-simple-player-mpv= /name/ /types/ /regex/ /command/ /&rest/ /args/
+**** Macro: =define-emms-simple-player-mpv= /name/ /types/ /regex/ /command/ /&rest/ /args/
 
     This macro emulates =define-emms-simple-player=. See EMMS Manual [[https://www.gnu.org/software/emms/manual/Simple-Players.html#Simple-Players][11 Simple Players]].
 
-*** Function: =emms-player-simple-mpv-add-to-converters= /player/ /regexp/ /types/ /fn/ /&optional/ /appendp/
+**** Function: =emms-player-simple-mpv-add-to-converters= /player/ /regexp/ /types/ /fn/ /&optional/ /appendp/
 
     This function adds a list (/regexp/ /types/ /fn/) to player's =mpv-track-name-converters=.
     /fn/ converts track name to input form
     when mpv needs specific format such as ffplay format for playing some protocols.
 
-*** User Option: =emms-player-simple-mpv-use-volume-change-function-p=
+**** User Option: =emms-player-simple-mpv-use-volume-change-function-p=
 
     Default value is =t=.
     If the variable is non-nil,
     =emms-player-simple-mpv-volume-change= is used as =emms-volume-change-function=
     while an emms simple player of mpv is running.
 
-*** Minor Mode: =emms-player-simple-mpv-keep-volume-mode=
+**** Minor Mode: =emms-player-simple-mpv-keep-volume-mode=
 
     If it is non-nil, the last volume value is used when new track starts.
 
@@ -105,7 +144,7 @@
 
     M-x =emms-player-simple-mpv-keep-volume-mode= toggles it.
 
-*** Minor Mode: =emms-player-simple-mpv-keep-speed-mode=
+**** Minor Mode: =emms-player-simple-mpv-keep-speed-mode=
 
     If it is non-nil, the last speed value is used when new track starts.
     Only track type of file is available.
@@ -114,55 +153,55 @@
 
     M-x =emms-player-simple-mpv-keep-speed-mode= toggles it.
 
-*** User Option: =emms-player-simple-mpv-keep-properties=
+**** User Option: =emms-player-simple-mpv-keep-properties=
 
     Alist of property name, function and symbol which has the last value.
     The function which checks the last value is available takes no arguments and returns boolean.
 
-*** User Option: =emms-player-simple-mpv-ipc-dir=
+**** User Option: =emms-player-simple-mpv-ipc-dir=
 
     The directory name for IPC. If nil, =temporary-file-directory= will be used.
 
     Default value is =nil=.
 
-*** User Option: =emms-player-simple-mpv-tq-event-pause-hook=
+**** User Option: =emms-player-simple-mpv-tq-event-pause-hook=
 
     Normal hook run when TQ process receives "pause" from mpv.
 
-*** User Option: =emms-player-simple-mpv-tq-event-unpause-hook=
+**** User Option: =emms-player-simple-mpv-tq-event-unpause-hook=
 
     Normal hook run when TQ process receives "unpause" from mpv.
 
-*** User Option: =emms-player-simple-mpv-tq-event-playback-restart-hook=
+**** User Option: =emms-player-simple-mpv-tq-event-playback-restart-hook=
 
     Normal hook run when TQ process receives "playback-restart" from mpv.
 
-*** User Option: =emms-player-simple-mpv-tq-event-property-change-functions-alist=
+**** User Option: =emms-player-simple-mpv-tq-event-property-change-functions-alist=
 
     Alist of property name and abnormal hook.
     When TQ process receives "property-change", an abnormal hook is run.
 
-*** User Option: =emms-player-simple-mpv-tq-event-filename-functions=
+**** User Option: =emms-player-simple-mpv-tq-event-filename-functions=
 
     Abnormal hook run with one argument which is filename.
 
     =emms-player-simple-mpv-tq-event-property-change-functions-alist= includes it.
 
-*** User Option: =emms-player-simple-mpv-tq-event-volume-functions=
+**** User Option: =emms-player-simple-mpv-tq-event-volume-functions=
 
     Abnormal hook run with one argument which is volume.
 
     =emms-player-simple-mpv-tq-event-property-change-functions-alist= includes it.
 
-*** User Option: =emms-player-simple-mpv-tq-event-speed-functions=
+**** User Option: =emms-player-simple-mpv-tq-event-speed-functions=
 
     Abnormal hook run with one argument which is speed.
 
     =emms-player-simple-mpv-tq-event-property-change-functions-alist= includes it.
 
-*** User Option: =emms-player-simple-mpv-tq-event-length-functions=
+**** User Option: =emms-player-simple-mpv-tq-event-duration-functions=
 
-    Abnormal hook run with one argument which is length.
+    Abnormal hook run with one argument which is duration.
 
 ** Example configuration files
 
@@ -192,12 +231,97 @@
       (require 'emms-player-simple-mpv-e.g.hydra)
     #+END_SRC
 
-** Some examples of defining specific emms simple players of mpv
+*** Some examples of defining specific emms simple players of mpv
 
-   + [[https://github.com/momomo5717/emms-player-mpv-jp-radios]]
+    + [[https://github.com/momomo5717/emms-player-mpv-jp-radios]]
+
+** emms-player-simple-mpv-playlist-mode
+
+   Major mode for displaying mpv playlist.
+
+*** Setup
+
+   #+BEGIN_SRC elisp
+   (require 'emms-player-simple-mpv-playlist-mode)
+
+   ;; Some mpv control functions can be added to `emms-player-simple-mpv-playlist-mode-map'.
+   (emms-player-simple-mpv-playlist-mode-setup-keybinds)
+   #+END_SRC
+
+*** Usage
+
+    M-x =emms-player-simple-mpv-playlist-popup=
+
+    Some commands are defined:
+
+    - [[#variable-emms-player-simple-mpv-playlist-mode-map][Variable: =emms-player-simple-mpv-playlist-mode-map= ]]
+    - [[#function-emms-player-simple-mpv-playlist-mode-setup-keybinds][Function: =emms-player-simple-mpv-playlist-mode-setup-keybinds= ]]
+
+*** Customization
+
+**** User Option: =emms-player-simple-mpv-playlist-mode-display-action=
+
+     This will be used for the action arg of =display-buffer= in =emms-player-simple-mpv-playlist-popup=.
+
+     Default value is
+     #+BEGIN_SRC elisp
+     '((display-buffer-reuse-window
+       display-buffer-at-bottom
+       display-buffer-pop-up-window)
+       (window-height . 0.3))
+     #+END_SRC
+
+**** User Option: =emms-player-simple-mpv-playlist-mode-format-function=
+
+     This can be set to a function name which is used for formatting a entry.
+     The function takes a entry and the position as arguments.
+
+     Default value is =emms-player-simple-mpv-playlist-mode-default-format-function=.
+
+**** Variable: =emms-player-simple-mpv-playlist-mode-map=
+
+     Keymap for =emms-player-simple-mpv-playlist-mode= the parent of which is =special-mode=.
+     The following keys are added.
+
+     | Key      | Action                                                       |
+     |----------+--------------------------------------------------------------|
+     | ~RET~    | Play the entry at point.                                     |
+     | ~d~      | Remove the entry at point.                                   |
+     | ~M-up~   | Move up the entry at point.                                  |
+     | ~M-down~ | Move down the entry at point.                                |
+     | ~>~      | Call playlist-next.                                          |
+     | ~<~      | Call playlist-prev.                                          |
+     | ~r~      | Call playlist-shuffle.                                       |
+     | ~R~      | Call playlist-shuffle and set playlist-pos to 0.             |
+     | ~g~      | Reload the playlist.                                         |
+     | ~.~      | Refresh the playlist (point will move to the current entry.) |
+     | ~c~      | Go to the current entry point.                               |
+
+**** Function: =emms-player-simple-mpv-playlist-mode-setup-keybinds=
+
+     The following keys will be added to =emms-player-simple-mpv-playlist-mode-map=.
+
+     | Key           | Action                 |
+     |---------------+------------------------|
+     | ~m~           | Toggle mute.           |
+     | ~p~           | Toggle pause.          |
+     | ~<left>/~     | Seek -5 sec.           |
+     | ~<right>~     | Seek +5 sec.           |
+     | ~S-<left>~    | Seek -1 sec.           |
+     | ~S-<right>~   | Seek +1 sec.           |
+     | ~[~           | Decrease speed.        |
+     | ~]~           | Increase speed.        |
+     | ~{~           | Halve speed.           |
+     | ~}~           | Double speed.          |
+     | ~<backspace>~ | Reset speed to normal. |
+     | ~T~           | Toggle ontop.          |
+     | ~f~           | Toggle fullscreen      |
+     | ~9~           | Decrease volume        |
+     | ~0~           | Increase volume        |
+     | ~l~           | Call ab-loop.          |
 
 ** References
 
    + emms-player-mpv ( [[https://github.com/dochang/emms-player-mpv]] )
    + mpv.el ( [[https://github.com/kljohann/mpv.el]] )
-   + mpv reference manual ( https://mpv.io/manual/ )
+   + mpv reference manual ( [[https://mpv.io/manual/]] )

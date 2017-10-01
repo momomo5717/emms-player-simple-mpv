@@ -1,6 +1,6 @@
 ;;; emms-player-simple-mpv-control-functions.el --- functions to control mpv via emms-player-simple-mpv.el -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2016 momomo5717
+;; Copyright (C) 2015-2017 momomo5717
 
 ;; Author: momomo5717
 ;; URL: https://github.com/momomo5717/emms-player-simple-mpv
@@ -47,22 +47,23 @@
   (interactive "nmpv seek to (%%) : ")
   (setq per (cond ((< per 0) 0) ((> per 100) 100) (t per)))
   (emms-player-simple-mpv-tq-enqueue
-   '("get_property" "length")
+   '("get_property" "duration")
    per
    (lambda (per ans-ls)
-     (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
-                (total-time (emms-player-simple-mpv--time-string data))
-                (pos  (floor (* per data) 100))
-                (time (emms-player-simple-mpv--time-string pos)))
-           (emms-player-simple-mpv-tq-enqueue
-            (list "seek" per "absolute-percent")
-            (format "mpv seek to (%%%%) : %.1f (%s / %s)" per time total-time)
-            (lambda (form ans-ls)
-              (if (emms-player-simple-mpv-tq-success-p ans-ls)
-                  (message form)
-                (message "mpv seek to (%%) : error")))))
-       (message "mpv seek to (%%) : error")))))
+     (let ((successp (emms-player-simple-mpv-tq-success-p ans-ls) )
+           (data (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+       (if (and successp (numberp data) (> data 0.0))
+           (let* ((total-time (emms-player-simple-mpv--time-string data))
+                  (pos  (floor (* per data) 100))
+                  (time (emms-player-simple-mpv--time-string pos)))
+             (emms-player-simple-mpv-tq-enqueue
+              (list "seek" per "absolute-percent")
+              (format "mpv seek to (%%%%) : %.1f (%s / %s)" per time total-time)
+              (lambda (form ans-ls)
+                (if (emms-player-simple-mpv-tq-success-p ans-ls)
+                    (message form)
+                  (message "mpv seek to (%%) : error")))))
+         (message "mpv seek to (%%) : error"))))))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-volume-to (v)
@@ -99,7 +100,7 @@
     "mpv time position : %s" :err-form "mpv time position : error"
     :fn #'emms-player-simple-mpv--time-string)))
 
-(defun emms-player-simple-mpv-time-pos-%-1 (form length)
+(defun emms-player-simple-mpv-time-pos-%-1 (form duration)
   "Helper function for `emms-player-simple-mpv-time-pos-%'."
   (emms-player-simple-mpv-tq-enqueue
    '("get_property" "percent-pos")
@@ -107,22 +108,23 @@
    (emms-player-simple-mpv-tq-data-message
     "%s" :err-form "mpv time position (%%) : error"
     :fn (lambda (data)
-          (format form data (emms-player-simple-mpv--time-string (/ (* data length) 100.0)))))))
+          (format form data (emms-player-simple-mpv--time-string (/ (* data duration) 100.0)))))))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-time-pos-% ()
   "Display position (0-100) in current file."
   (interactive)
   (emms-player-simple-mpv-tq-enqueue
-   '("get_property" "length")
+   '("get_property" "duration")
    nil
    (lambda (_ ans-ls)
-     (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (let* ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
-                (form "mpv time position (%%%%) : %%.1f (%%s / %s)")
-                (form (format form (emms-player-simple-mpv--time-string data))))
-           (emms-player-simple-mpv-time-pos-%-1 form data))
-       (message "mpv time position (%%) : error")))))
+     (let ((successp (emms-player-simple-mpv-tq-success-p ans-ls))
+           (data (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+       (if (and successp (numberp data) (> data 0.0))
+           (let* ((form "mpv time position (%%%%) : %%.1f (%%s / %s)")
+                  (form (format form (emms-player-simple-mpv--time-string data))))
+             (emms-player-simple-mpv-time-pos-%-1 form data))
+         (message "mpv time position (%%) : error"))))))
 
 (defmacro emms-player-simple-mpv--playlist-change-1 (str)
   "Helper macro for emms-player-simple-mpv--playlist-next/prev."
@@ -194,6 +196,94 @@ Set playlist-pos to N."
            (format "mpv playlist position : %%s (total %s)"
                    (emms-player-simple-mpv-tq-assq-v 'data ans-ls))))
        (message "mpv playlist position : error")))))
+
+(defun emms-player-simple-mpv--with-playlist-pos (fn)
+  "Run FN with playlist-pos data."
+  (emms-player-simple-mpv-tq-enqueue
+   '("get_property" "playlist-pos")
+   nil
+   (lambda (_ ans-ls)
+     (if (emms-player-simple-mpv-tq-success-p ans-ls)
+         (funcall fn (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+       (message "mpv playlist-pos : %s"
+                (emms-player-simple-mpv-tq-assq-v 'error ans-ls))))))
+
+(defun emms-player-simple-mpv--playlist (&optional p1 p2 fn)
+  "Display playlist/P1/P2.
+Run FN with data, if non-nil."
+  (let ((com (mapconcat (lambda (p) (format "%s" p))
+                        (delete nil (list "playlist" p1 p2))
+                        "/")))
+    (emms-player-simple-mpv-tq-enqueue
+     `("get_property" ,com)
+     com
+     (lambda (com ans-ls)
+       (if (emms-player-simple-mpv-tq-success-p ans-ls)
+           (if fn (funcall fn (emms-player-simple-mpv-tq-assq-v 'data ans-ls))
+             (message "mpv %s : %s" com (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+         (message "mpv %s : %s" com (emms-player-simple-mpv-tq-assq-v 'error ans-ls)))))))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-nth-title (n)
+  "Display title of N th entry.
+N is 0-base"
+  (interactive "nInput playlist position: ")
+  (emms-player-simple-mpv--playlist n "title"))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-current-title ()
+  "Display title of the current entry."
+  (interactive)
+  (emms-player-simple-mpv--with-playlist-pos
+   (lambda (n) (emms-player-simple-mpv--playlist n "title"))))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-nth-filename (n)
+  "Display filename of N th entry.
+N is 0-base."
+  (interactive "nInput playlist position: ")
+  (emms-player-simple-mpv--playlist n "filename"))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-current-filename ()
+  "Display title current entry."
+  (interactive)
+  (emms-player-simple-mpv--with-playlist-pos
+   (lambda (n) (emms-player-simple-mpv--playlist n "filename"))))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-move (index1 index2)
+  "Run playlist-move INDEX1 INDEX2."
+  (interactive "nInput index1: \nnInput index2: ")
+  (emms-player-simple-mpv-tq-enqueue
+   `("playlist-move" ,index1 ,index2) nil
+   (emms-player-simple-mpv-tq-error-message
+    (format "mpv playlist-move: %s %s : %%s" index1 index2))))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-shuffle ()
+  "Run playlist-shuffle."
+  (interactive)
+  (emms-player-simple-mpv-tq-enqueue
+   '("playlist-shuffle") nil
+   (emms-player-simple-mpv-tq-error-message "mpv playlist-shuffle: %s")))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-remove-current ()
+  "Run playlist-remove current."
+  (interactive)
+  (emms-player-simple-mpv-tq-enqueue
+   '("playlist-remove" "current") nil
+   (emms-player-simple-mpv-tq-error-message "mpv playlist-remove current: %s")))
+
+;;;###autoload
+(defun emms-player-simple-mpv-playlist-remove-index (index)
+  "Run playlist-remove INDEX."
+  (interactive "nInput index: ")
+  (emms-player-simple-mpv-tq-enqueue
+   `("playlist-remove" ,index) nil
+   (emms-player-simple-mpv-tq-error-message
+    (format "mpv playlist-remove %s : %%s" index))))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-speed-to (v)
@@ -314,12 +404,10 @@ If N is less than 1, set loop to \"inf\"."
 ;;;###autoload
 (defun emms-player-simple-mpv-loop-file-to (n)
   "Set loop-file to N.
-If N is less than 1, set loop-file to \"inf\"."
+If N is less than 0, set loop-file to \"inf\"."
   (interactive "nmpv loop-file to : ")
   (emms-player-simple-mpv-set_property
-   "loop-file" (cond ((< n 1) "inf")
-                     ((= n 1) "no")
-                     (t n))
+   "loop-file" (if (< n 0) "inf" n)
    :fn (lambda (v) (if (numberp v) (format "%s times" v) v))))
 
 ;;;###autoload

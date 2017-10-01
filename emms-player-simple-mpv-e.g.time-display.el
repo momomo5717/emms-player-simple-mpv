@@ -1,6 +1,6 @@
 ;;; emms-player-simple-mpv-e.g.time-display.el --- A setting example of TQ event hooks -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2016 momomo5717
+;; Copyright (C) 2015-2017 momomo5717
 
 ;; Author: momomo5717
 ;; URL: https://github.com/momomo5717/
@@ -83,17 +83,17 @@ SPEED is a mpv property of speed."
 (defvar emms-player-simple-mpv-info-playing-time-ignore-types nil
   "List of type.")
 
-(defun emms-player-simple-mpv-set-info-playing-time (length)
-  "Set info-playing-time to LENGTH."
-  (when (and  (numberp length)
-              (not (memq (emms-track-type (emms-playlist-current-selected-track))
-                         emms-player-simple-mpv-info-playing-time-ignore-types)))
+(defun emms-player-simple-mpv-set-info-playing-time (duration)
+  "Set info-playing-time to DURATION."
+  (when (and (numberp duration) (> duration 0.0)
+             (not (memq (emms-track-type (emms-playlist-current-selected-track))
+                        emms-player-simple-mpv-info-playing-time-ignore-types)))
     (emms-track-set
      (emms-playlist-current-selected-track)
-     'info-playing-time (floor length))
+     'info-playing-time (floor duration))
     (when (bound-and-true-p emms-state-mode) (emms-state-set-total-playing-time))))
 
-(add-hook 'emms-player-simple-mpv-tq-event-length-functions
+(add-hook 'emms-player-simple-mpv-tq-event-duration-functions
           'emms-player-simple-mpv-set-info-playing-time)
 
 (provide 'emms-player-simple-mpv-e.g.time-display)

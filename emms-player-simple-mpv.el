@@ -1,6 +1,6 @@
 ;;; emms-player-simple-mpv.el --- An extension of emms-player-simple.el for mpv JSON IPC  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2016 momomo5717
+;; Copyright (C) 2015-2017 momomo5717
 
 ;; Keywords: emms, mpv
 ;; Version: 0.4.0
@@ -34,7 +34,7 @@
 ;;
 ;; Other Requirements:
 ;;
-;;   + mpv v0.7 or later
+;;   + mpv v0.10.0 or later
 ;;   + Unix Sockets
 ;;
 ;; Setup:
@@ -60,6 +60,17 @@
 ;;
 ;; (add-to-list 'emms-player-list 'emms-player-my-mpv)
 ;;
+;; ;; Playing YouTube playlist in reverse order.
+;; `emms-player-my-mpv-ytpl-reverse' will be defined in this case.
+;; (define-emms-simple-player-mpv my-mpv-ytpl-reverse '(url)
+;;   "\\`http[s]://www\\.youtube\\.com/playlist\\?list="
+;;   "mpv" "--no-terminal" "--force-window=no" "--audio-display=no"
+;;   "--ytdl" "--ytdl-raw-options=playlist-reverse=")
+;;
+;; (add-to-list 'emms-player-list 'emms-player-my-mpv-ytpl-reverse)
+;;
+;; ;; M-x emms-player-simple-mpv-playlist-popup can display playlist
+;;
 ;; The following example configuration files are available:
 ;;
 ;;   + emms-player-simple-mpv-e.g.time-display.el
@@ -75,7 +86,7 @@
 (require 'tq)
 (require 'later-do)
 
-(defconst emms-player-simple-mpv-version "0.3.0")
+(defconst emms-player-simple-mpv-version "0.4.0")
 
 (defgroup emms-simple-player-mpv nil
   "An extension of emms-simple-player.el."
@@ -174,14 +185,20 @@ This variable will used with `make-temp-name'.")
 (add-hook 'emms-player-simple-mpv-tq-event-speed-functions
           (lambda (speed) (setq emms-player-simple-mpv-last-speed speed)))
 
-(defcustom emms-player-simple-mpv-tq-event-length-functions nil
-  "Abnormal hook run with one argument which is length.")
+(defcustom emms-player-simple-mpv-tq-event-duration-functions nil
+  "Abnormal hook run with one argument which is duration."
+  :group 'emms-simple-player-mpv
+  :type 'hook)
+
+(define-obsolete-variable-alias 'emms-player-simple-mpv-tq-event-length-functions
+  'emms-player-simple-mpv-tq-event-duration-functions
+  "20170930")
 
 (defcustom emms-player-simple-mpv-tq-event-property-change-functions-alist
   (list '("filename" . emms-player-simple-mpv-tq-event-filename-functions)
         '("volume" . emms-player-simple-mpv-tq-event-volume-functions)
         '("speed" . emms-player-simple-mpv-tq-event-speed-functions)
-        '("length" . emms-player-simple-mpv-tq-event-length-functions))
+        '("duration" . emms-player-simple-mpv-tq-event-duration-functions))
   "Alist of property name and abnormal hook.
 Abnormal hook run with one argument for data
 when TQ process receives \"property-change\" from mpv."
@@ -290,6 +307,12 @@ Only track type of file is available."
 (defvar emms-player-simple-mpv--tq nil
   "TQ process.")
 
+(defvar emms-player-simple-mpv--tq-id-counter 0
+  "Counter for request_id.")
+
+(defvar emms-player-simple-mpv--tq-hash (make-hash-table)
+  "Key: request_id, Value: \(closure . fn).")
+
 (defvar emms-player-simple-mpv-tq-process-name
   "emms-player-simple-mpv-tq-process")
 
@@ -303,6 +326,8 @@ Only track type of file is available."
                           (or emms-player-simple-mpv-ipc-dir temporary-file-directory))))
 
 (defun emms-player-simple-mpv--tq-create ()
+  (setq emms-player-simple-mpv--tq-id-counter 0)
+  (setq emms-player-simple-mpv--tq-hash (make-hash-table))
   (tq-create (make-network-process
               :name emms-player-simple-mpv-tq-process-name
               :family 'local
@@ -333,7 +358,7 @@ Only track type of file is available."
 
 (defun emms-player-simple-mpv--tq-process-buffer (tq)
   "Check TQ's buffer at the head of the queue.
-See tq.el."
+See `tq-process-buffer'."
   (let ((buffer (tq-buffer tq)))
     (while (and (buffer-live-p buffer) (set-buffer buffer) (> (buffer-size) 0))
       (goto-char (point-min))
@@ -341,16 +366,21 @@ See tq.el."
              (point (if (re-search-forward "{" nil t)
                         (goto-char (match-beginning 0))
                       (point)))
-             (fn (tq-queue-head-fn tq))
-             (closure (tq-queue-head-closure tq))
+             (request_id (emms-player-simple-mpv-tq-assq-v 'request_id answer-ls))
+             (hash-v (when request_id (gethash request_id emms-player-simple-mpv--tq-hash)))
+             (closure (car hash-v))
+             (fn (cdr hash-v))
              (event (and (listp answer-ls)
                          (emms-player-simple-mpv-tq-assq-v 'event answer-ls))))
         (delete-region (point-min)
                        (if (ignore-errors (json-read)) point (point-max)))
         (if event (emms-player-simple-mpv--tq-event-action event answer-ls)
           (unwind-protect
-              (when fn (ignore-errors (funcall fn closure answer-ls)))
-            (tq-queue-pop tq)))))))
+              (when fn (condition-case err
+                           (funcall fn closure answer-ls)
+                         (error (message "Error: mpv tq-process-buffer : %s"
+                                         (error-message-string err)))))
+            (remhash request_id emms-player-simple-mpv--tq-hash)))))))
 
 (defun emms-player-simple-mpv-playing-p ()
   "Return t when `emms-player-simple-mpv--tq' process is open."
@@ -363,24 +393,33 @@ See tq.el."
   "Clear tq-enque if it remains."
   (interactive)
   (when emms-player-simple-mpv--tq
-   (let ((buffer (tq-buffer emms-player-simple-mpv--tq)))
-     (setcar emms-player-simple-mpv--tq nil)
-     (when (buffer-live-p buffer)
-       (with-current-buffer buffer
-         (delete-region (point-min) (point-max)))))))
+    (let ((buffer (tq-buffer emms-player-simple-mpv--tq)))
+      (setcar emms-player-simple-mpv--tq nil)
+      (setq emms-player-simple-mpv--tq-id-counter 0)
+      (setq emms-player-simple-mpv--tq-hash (make-hash-table))
+      (when (buffer-live-p buffer)
+        (with-current-buffer buffer
+          (delete-region (point-min) (point-max)))))))
 
-(defun emms-player-simple-mpv--tq-make-command (com &rest params)
-  "Build JSON command from COM and PARAMS."
-  (concat (json-encode `(("command" . (,com ,@params)))) "\n"))
+(defun emms-player-simple-mpv--tq-make-command (com-ls id)
+  "Build JSON command from COM-LS and request ID.
+`emms-player-simple-mpv--tq-id-counter' will be used as request_id."
+  (concat (json-encode `(("command" . ,com-ls) ("request_id" . ,id)))
+          "\n"))
 
 ;;;###autoload
-(defun emms-player-simple-mpv-tq-enqueue
-    (com-ls closure fn &optional delay-question)
-  "Wrapper function of `tq-enqueue'."
+(defun emms-player-simple-mpv-tq-enqueue (com-ls closure fn)
+  "Work like `tq-enqueue' except for using a hash table.
+COM-LS is a list of a command name and params.
+CLOSURE will be used as a first arg for FN.
+FN will take CLOSURE and a parsed json object \(alist) after receiveing a reply."
   (when (emms-player-simple-mpv-playing-p)
-    (tq-enqueue emms-player-simple-mpv--tq
-                (apply #'emms-player-simple-mpv--tq-make-command com-ls)
-                "" closure fn delay-question)))
+    (cl-incf emms-player-simple-mpv--tq-id-counter)
+    (puthash emms-player-simple-mpv--tq-id-counter (cons closure fn)
+             emms-player-simple-mpv--tq-hash)
+    (process-send-string (tq-process emms-player-simple-mpv--tq)
+                         (funcall #'emms-player-simple-mpv--tq-make-command
+                                  com-ls emms-player-simple-mpv--tq-id-counter))))
 
 (defun emms-player-simple-mpv-tq-success-p (ans)
   "Check command response from ANS."
@@ -658,37 +697,41 @@ FN takes track-name as an argument."
              (push (cons name id) emms-player-simple-mpv--observe_property-name-als)
            (message "mpv : Failed to set \"observe_property\" of %s" name)))))))
 
-(defmacro emms-player-simple-mpv--set_property-1 (command)
-  "Helper macro emms-player-simple-mpv-set_property\(_string\)."
-  `(emms-player-simple-mpv-tq-enqueue
-    (list ,command property value)
-    nil
-    (lambda (_ ans-ls)
-      (if (emms-player-simple-mpv-tq-success-p ans-ls)
-          (when msg
-            (message (format "mpv %s : %s" msg spec) (funcall fn value)))
-        (when err-msg
-          (message "mpv %s : error" err-msg))))))
+(defun emms-player-simple-mpv--set_property-1
+    (com property value spec msg err-msg fn)
+  "Helper function for emms-player-simple-mpv-set_property\(_string\)."
+  (emms-player-simple-mpv-tq-enqueue
+   (list com property value) nil
+   (lambda (_ ans-ls)
+     (if (emms-player-simple-mpv-tq-success-p ans-ls)
+         (if msg
+             (message (format "mpv %s : %s" msg spec)
+                      (if fn (funcall fn value) value))
+           (when fn (funcall fn value)))
+       (when err-msg
+         (message "mpv %s : %s" err-msg (cdr (assq 'error ans-ls))))))))
 
 ;;;###autoload
 (cl-defun emms-player-simple-mpv-set_property
     (property value &key (spec "%s") (msg property) (err-msg property) (fn #'identity))
-  "Set PROPERTY to VALUE.
+  "Set PROPERTY to VALUE via set_property.
 :SPEC is a format specification for VALUE.
 :MSG is displayed when command succeeds. If nil, it will be ignored.
 :ERR-MSG is displayed when command fails. If nil, it will be ignored.
-:FN takes VALUE as an argument."
-  (emms-player-simple-mpv--set_property-1 "set_property"))
+:FN takes VALUE as an argument. Its returned value will be used for :SPEC if :MSG is non-nil."
+  (emms-player-simple-mpv--set_property-1
+   "set_property" property value spec msg err-msg fn))
 
 ;;;###autoload
 (cl-defun emms-player-simple-mpv-set_property_string
     (property value &key (spec "%s") (msg property) (err-msg property) (fn #'identity))
-  "Set PROPERTY to VALUE.
+  "Set PROPERTY to VALUE via property_string.
 :SPEC is a format specification for VALUE.
 :MSG is displayed when command succeeds. If nil, it will be ignored.
 :ERR-MSG is displayed when command fails. If nil, it will be ignored.
-:FN takes VALUE as an argument."
-  (emms-player-simple-mpv--set_property-1 "set_property_string"))
+:FN takes VALUE as an argument. Its returned value will be used for :SPEC if :MSG is non-nil."
+  (emms-player-simple-mpv--set_property-1
+   "set_property_string" property value spec msg err-msg fn))
 
 (defsubst emms-player-simple-mpv--time-string (sec)
   "SEC to \"%02h:%02m:%02s\"."
@@ -738,7 +781,7 @@ FN takes track-name as an argument."
 
 (defun emms-player-simple-mpv--seek-2 (sec)
   "Helper funcion for `emms-player-simple-mpv-seek'.
-For a track which does not have length property."
+For a track which does not have duration property."
   (emms-player-simple-mpv-tq-enqueue
    (list "seek" sec "relative")
    nil
@@ -749,16 +792,17 @@ For a track which does not have length property."
 (defun emms-player-simple-mpv-seek (sec)
   "Seek by SEC."
   (emms-player-simple-mpv-tq-enqueue
-   '("get_property" "length")
+   '("get_property" "duration")
    sec
    (lambda (sec ans-ls)
-     (if (emms-player-simple-mpv-tq-success-p ans-ls)
-         (let ((data (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+     (let ((successp (emms-player-simple-mpv-tq-success-p ans-ls))
+           (data (emms-player-simple-mpv-tq-assq-v 'data ans-ls)))
+       (if (and successp (numberp data) (> data 0.0))
            (emms-player-simple-mpv-tq-enqueue
             '("get_property" "time-pos")
             `((sec . ,sec) (len . ,data))
-            'emms-player-simple-mpv--seek-1))
-       (emms-player-simple-mpv--seek-2 sec)))))
+            'emms-player-simple-mpv--seek-1)
+         (emms-player-simple-mpv--seek-2 sec))))))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-seek-to (sec)

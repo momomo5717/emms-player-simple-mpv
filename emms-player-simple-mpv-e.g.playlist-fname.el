@@ -1,6 +1,6 @@
 ;;; emms-player-simple-mpv-e.g.playlist-fname.el --- A setting example of TQ event hooks -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2016 momomo5717
+;; Copyright (C) 2015-2017 momomo5717
 
 ;; Author: momomo5717
 ;; URL: https://github.com/momomo5717/
