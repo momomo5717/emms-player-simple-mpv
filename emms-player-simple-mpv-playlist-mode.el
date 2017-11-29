@@ -59,7 +59,7 @@
     (window-height . 0.3))
   "Action for `emms-player-simple-mpv-playlist-popup'.
 This will be used for the action arg of `display-buffer'."
-  :type display-buffer--action-custom-type
+  :type (get 'display-buffer-base-action 'custom-type)
   :group 'emms-simple-player-mpv-playlist-mode)
 
 (defcustom emms-player-simple-mpv-playlist-mode-format-function

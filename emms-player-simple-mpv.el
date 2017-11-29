@@ -99,7 +99,7 @@ Renamed --input-unix-socket to --input-ipc-server since mpv v0.17.0"
   :group 'emms-simple-player-mpv
   :type '(choice (const :tag "Set automatically" nil)
                  (const :tag "mpv v0.17.0 or later" "--input-ipc-server")
-                 (const :tag "mpv v0.7.0 to v0.16.0 " "--input-unix-socket")))
+                 (const :tag "mpv v0.10.0 to v0.16.0 " "--input-unix-socket")))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-get-version ()
@@ -128,7 +128,7 @@ If nil, `temporary-file-directory' will be used."
 
 (defvar emms-player-simple-mpv-ipc-fname-prefix "mpv--socket"
   "File name prefix for IPC.
-This variable will used with `make-temp-name'.")
+This variable will be used with `make-temp-name'.")
 
 (defcustom emms-player-simple-mpv-use-volume-change-function-p t
   "If non-nil, `emms-player-simple-mpv-volume-change' is used as `emms-volume-change-function'."
@@ -203,7 +203,7 @@ This variable will used with `make-temp-name'.")
 Abnormal hook run with one argument for data
 when TQ process receives \"property-change\" from mpv."
   :group 'emms-simple-player-mpv
-  :type '(alist string hook))
+  :type '(alist :key-type string :value-type symbol))
 
 (defcustom emms-player-simple-mpv-keep-properties
   (list '("volume"
@@ -215,7 +215,7 @@ when TQ process receives \"property-change\" from mpv."
   "Alist of property name , function and symbol which has the last value.
 The function takes no arguments and returns boolean."
   :group 'emms-simple-player-mpv
-  :type '(alist string (list function symbol)))
+  :type '(alist :key-type string (group function symbol)))
 
 (define-minor-mode emms-player-simple-mpv-keep-volume-mode
   "Last volume value is used when new track starts."
