@@ -1,4 +1,4 @@
-;;; emms-player-simple-mpv-e.g.hydra.el --- A setting example for hydra -*- lexical-binding: t; no-byte-compile: t -*-
+;;; emms-player-simple-mpv-e.g.hydra.el --- A setting example for hydra -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2015-2017 momomo5717
 
@@ -22,11 +22,13 @@
 ;;; Commentary:
 
 ;; This provides a setting example of hydra for emms-player-simple-mpv.
+;;
+;; Setting `emms-player-simple-mpv-hydra/body' to a global key bind would be useful.
+;; (global-set-key (kbd "<f2> m") 'emms-player-simple-mpv-hydra/body)
 
 ;;; Code:
-
-;; Setting it to a global key bind would be useful.
-;; (global-set-key (kbd "<f2> m") 'emms-player-simple-mpv-hydra/body)
+(require 'emms-player-simple-mpv-control-functions)
+(require 'hydra nil t)
 
 ;; This setting example emulates default key bindings of mpv player as mutch as possible.
 
@@ -78,40 +80,40 @@
 "
   "Docstring for `emms-player-simple-mpv-hydra/body'.")
 
-(eval-after-load "emms-player-simple-mpv-control-functions"
-  `(eval-after-load "hydra"
-     '(defhydra emms-player-simple-mpv-hydra
-        (:foreign-keys warn :hint nil)
-        ,emms-player-simple-mpv-hydra-docstring
-        ("Q" nil)
-        ("<left>"    (lambda () (interactive) (emms-seek -5)))
-        ("S-<left>"  (lambda () (interactive) (emms-seek -1)))
-        ("<down>"    (lambda () (interactive) (emms-seek -60)))
-        ("S-<down>"  (lambda () (interactive) (emms-seek -5)))
-        ("<right>"   (lambda () (interactive) (emms-seek 5)))
-        ("S-<right>" (lambda () (interactive) (emms-seek 1)))
-        ("<up>"      (lambda () (interactive) (emms-seek 60)))
-        ("S-<up>"    (lambda () (interactive) (emms-seek 5)))
-        ("["  emms-player-simple-mpv-speed-decrease)
-        ("]"  emms-player-simple-mpv-speed-increase)
-        ("{"  emms-player-simple-mpv-speed-halve)
-        ("}"  emms-player-simple-mpv-speed-double)
-        ("<backspace>" emms-player-simple-mpv-speed-normal)
-        ("<" emms-player-simple-mpv-playlist-prev)
-        (">" emms-player-simple-mpv-playlist-next)
-        ("<return>" emms-player-simple-mpv-playlist-next)
-        ("p" emms-pause)
-        ("SPC" emms-pause)
-        ("q" (lambda () (interactive)
-               (when (y-or-n-p "emms-stop?")
-                 (emms-stop))) :exit t)
-        ("/" emms-volume-lower)
-        ("*" emms-volume-raise)
-        ("9" emms-volume-lower)
-        ("0" emms-volume-raise)
-        ("m" emms-player-simple-mpv-mute)
-        ("f" emms-player-simple-mpv-fullscreen)
-        ("T" emms-player-simple-mpv-ontop))))
+
+(eval-after-load "hydra"
+  `(defhydra emms-player-simple-mpv-hydra
+     (:foreign-keys warn :hint nil)
+     ,emms-player-simple-mpv-hydra-docstring
+     ("Q" nil)
+     ("<left>"    (lambda () (interactive) (emms-seek -5)))
+     ("S-<left>"  (lambda () (interactive) (emms-seek -1)))
+     ("<down>"    (lambda () (interactive) (emms-seek -60)))
+     ("S-<down>"  (lambda () (interactive) (emms-seek -5)))
+     ("<right>"   (lambda () (interactive) (emms-seek 5)))
+     ("S-<right>" (lambda () (interactive) (emms-seek 1)))
+     ("<up>"      (lambda () (interactive) (emms-seek 60)))
+     ("S-<up>"    (lambda () (interactive) (emms-seek 5)))
+     ("["  emms-player-simple-mpv-speed-decrease)
+     ("]"  emms-player-simple-mpv-speed-increase)
+     ("{"  emms-player-simple-mpv-speed-halve)
+     ("}"  emms-player-simple-mpv-speed-double)
+     ("<backspace>" emms-player-simple-mpv-speed-normal)
+     ("<" emms-player-simple-mpv-playlist-prev)
+     (">" emms-player-simple-mpv-playlist-next)
+     ("<return>" emms-player-simple-mpv-playlist-next)
+     ("p" emms-pause)
+     ("SPC" emms-pause)
+     ("q" (lambda () (interactive)
+            (when (y-or-n-p "emms-stop?")
+              (emms-stop))) :exit t)
+     ("/" emms-volume-lower)
+     ("*" emms-volume-raise)
+     ("9" emms-volume-lower)
+     ("0" emms-volume-raise)
+     ("m" emms-player-simple-mpv-mute)
+     ("f" emms-player-simple-mpv-fullscreen)
+     ("T" emms-player-simple-mpv-ontop)))
 
 (provide 'emms-player-simple-mpv-e.g.hydra)
 ;;; emms-player-simple-mpv-e.g.hydra.el ends here
