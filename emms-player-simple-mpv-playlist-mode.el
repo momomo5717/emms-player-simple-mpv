@@ -70,7 +70,7 @@ This will be used for `emms-player-simple-mpv-plm--insert-entry'."
   :type 'function
   :group 'emms-simple-player-mpv-playlist-mode)
 
-(defvar emms-player-simple-mpv-plm--buffer-name " *EMMS MPV Playlist*"
+(defvar emms-player-simple-mpv-plm--buffer-name " *EMMS mpv Playlist*"
   "Buffer name for mpv playlist.")
 
 (defvar emms-player-simple-mpv-plm--buffer nil
@@ -80,6 +80,28 @@ This will be used for `emms-player-simple-mpv-plm--insert-entry'."
   "Store current `emms-player-simple-mpv--socket'.
 This will be used as a buffer local variable.")
 (make-variable-buffer-local 'emms-player-simple-mpv-plm--mpv-socket)
+
+(defvar emms-player-simple-mpv-plm--wait-response-p nil
+  "Wait for the response if non-nil.")
+
+(defun emms-player-simple-mpv-plm--wait-response (&optional id)
+  "Set `emms-player-simple-mpv-plm--wait-response-p' to ID.
+If ID is nil, `emms-player-simple-mpv--tq-id-counter' will be used.
+
+This function needs to calling before `emms-player-simple-mpv-tq-enqueue'."
+  (setq emms-player-simple-mpv-plm--wait-response-p
+        (or id emms-player-simple-mpv--tq-id-counter)))
+
+(defun emms-player-simple-mpv-plm--maybe-response-p (id)
+  "Return t if ID equals `emms-player-simple-mpv-plm--wait-response-p'.
+and set `emms-player-simple-mpv-plm--wait-response-p' to nil.
+If ID is an alist, request_id value will be used."
+  (when (or (eq emms-player-simple-mpv-plm--wait-response-p id)
+            (and (listp id)
+                 (eq emms-player-simple-mpv-plm--wait-response-p
+                     (cdr (assq 'request_id id)))))
+    (setq emms-player-simple-mpv-plm--wait-response-p nil)
+    t))
 
 (defvar emms-player-simple-mpv-plm--last-playlist []
   "Last mpv playlist.")
@@ -93,6 +115,29 @@ Reset it if RESETP is no-nil."
       (setq emms-player-simple-mpv-plm--last-length
             (length emms-player-simple-mpv-plm--last-playlist))
     emms-player-simple-mpv-plm--last-length))
+
+(defvar emms-player-simple-mpv-plm--last-cpos nil
+  "The current entry position of the last playlist.")
+
+(defun emms-player-simple-mpv-plm--last-cpos (&optional resetp)
+  "Get the current entry position of the last playlist.
+Reset it if RESETP is no-nil."
+  (if (or resetp (null emms-player-simple-mpv-plm--last-cpos))
+      (setq emms-player-simple-mpv-plm--last-cpos
+            (cl-position t emms-player-simple-mpv-plm--last-playlist
+                         :key (lambda (e) (cdr (assq 'current e)))))
+    emms-player-simple-mpv-plm--last-cpos))
+
+(defun emms-player-simple-mpv-plm--set-last-cpos (pos)
+  "Set `emms-player-simple-mpv-plm--last-cpos' to POS."
+  (let* ((cpos (emms-player-simple-mpv-plm--last-cpos))
+         (playlist emms-player-simple-mpv-plm--last-playlist)
+         (entry1 (aref playlist cpos))
+         (entry2 (aref playlist pos)))
+    (aset playlist cpos (dolist (key '(current playing) entry1)
+                          (setq entry1 (assq-delete-all key entry1))))
+    (aset playlist pos `((current . t) (playing . t) ,@entry2))
+    (setq emms-player-simple-mpv-plm--last-cpos pos)))
 
 (defun emms-player-simple-mpv-plm--get-buffer (&optional buffer)
   "Get `emms-player-simple-mpv-plm--buffer-name' buffer.
@@ -118,8 +163,8 @@ If BUFFER is no-nil, it will be used."
               (funcall emms-player-simple-mpv-playlist-mode-format-function entry position)
               "\n")
              'mpv-playlist-entry entry
-             'mpv-playlist-pos position
-             'face (if (assq 'current entry)
+             'mpv-playlist-entry-pos position
+             'face (if (eq (cdr (assq 'current entry)) t)
                        'emms-simple-player-mpv-playlist-mode-selected-face
                      'emms-simple-player-mpv-playlist-mode-entry-face)))))
 
@@ -132,9 +177,9 @@ If BUFFER is no-nil, it will be used."
            (emms-player-simple-mpv-plm--insert-entry entry pos)
            finally return current))
 
-(defun emms-player-simple-mpv-plm--pos-at (&optional point)
-  "Get mpv-playlist-pos property at POINT."
-  (get-text-property (or point (point)) 'mpv-playlist-pos))
+(defun emms-player-simple-mpv-plm--entry-pos-at (&optional point)
+  "Get mpv-playlist-entry-pos property at POINT."
+  (get-text-property (or point (point)) 'mpv-playlist-entry-pos))
 
 (defun emms-player-simple-mpv-plm--entry-at (&optional point)
   "Get entry at POINT."
@@ -171,11 +216,12 @@ If BUFFER is no-nil, it will be used."
    (lambda (playlist)
      (setq emms-player-simple-mpv-plm--last-playlist playlist)
      (setq emms-player-simple-mpv-plm--last-length nil)
+     (setq emms-player-simple-mpv-plm--last-cpos nil)
      (run-with-timer 0 nil fn playlist))))
 
 (defun emms-player-simple-mpv-plm--reload (playlist &optional goto-currentp)
   "Reload PLAYLIST and return point of the current entry.
-Go to the current entry If GOTO-CURRENTP is non-nil."
+Go to the current entry if GOTO-CURRENTP is non-nil."
   (with-current-buffer (emms-player-simple-mpv-plm--get-buffer)
     (let* ((inhibit-read-only t)
            (point (point))
@@ -230,20 +276,59 @@ Go to the current entry If GOTO-CURRENTP is non-nil."
 (defun emms-player-simple-mpv-playlist-mode-goto-current ()
   "Go to the current entry."
   (interactive)
-  (let ((cpos (cl-position t emms-player-simple-mpv-plm--last-playlist
-                           :key (lambda (e) (cdr (assq 'current e))))))
+  (let ((cpos (emms-player-simple-mpv-plm--last-cpos)))
     (when cpos (emms-player-simple-mpv-playlist-mode-goto-nth cpos))))
+
+(defun emms-player-simple-mpv-plm--update-playlist-pos (pos &optional gotop)
+  "Set the POS entry to the current entry for `emms-player-simple-mpv-plm--buffer'.
+Go to the begging of the POS if GOTOP is non-nil."
+  (with-current-buffer (emms-player-simple-mpv-plm--get-buffer)
+    (let* ((inhibit-read-only t)
+           (playlist emms-player-simple-mpv-plm--last-playlist)
+           (cpos (emms-player-simple-mpv-plm--last-cpos))
+           (face1 'emms-simple-player-mpv-playlist-mode-entry-face)
+           (face2 'emms-simple-player-mpv-playlist-mode-selected-face)
+           (dls (list (- cpos (or (emms-player-simple-mpv-plm--entry-pos-at)
+                                  (and (eobp)
+                                       (emms-player-simple-mpv-plm--last-length))))
+                      (- pos cpos)))
+           start)
+      (save-excursion
+        (emms-player-simple-mpv-plm--set-last-cpos pos)
+        (cl-loop for (i . face) in `((,cpos . ,face1) (,pos . ,face2))
+                 for dl in dls do
+                 (forward-line dl)
+                 (setq start (point))
+                 (add-text-properties
+                  start (next-single-char-property-change start 'mpv-playlist-entry-pos)
+                  `(face ,face mpv-playlist-entry ,(aref playlist i)))))
+      (when gotop (goto-char start)))))
+
+;;;###autoload
+(defun emms-player-simple-mpv-plm-update-playlist-pos (pos)
+  "Update playlist-pos(POS) for `emms-player-simple-mpv-plm--buffer'."
+  (when (and (buffer-live-p emms-player-simple-mpv-plm--buffer)
+             (eq (buffer-local-value 'emms-player-simple-mpv-plm--mpv-socket
+                                     emms-player-simple-mpv-plm--buffer)
+                 emms-player-simple-mpv--socket)
+             (> (emms-player-simple-mpv-plm--last-length) 1))
+    (unless (eq pos (emms-player-simple-mpv-plm--last-cpos))
+      (emms-player-simple-mpv-plm--update-playlist-pos pos))))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-playlist-mode-play-at (&optional point)
   "Set playlist-pos to the entry at POINT."
   (interactive)
   (when (eq emms-player-simple-mpv-plm--mpv-socket emms-player-simple-mpv--socket)
-    (let ((pos (emms-player-simple-mpv-plm--pos-at (or point (point)))))
-      (when pos
+    (let ((pos (emms-player-simple-mpv-plm--entry-pos-at (or point (point))))
+          (response-id emms-player-simple-mpv--tq-id-counter))
+      (when (and pos (not emms-player-simple-mpv-plm--wait-response-p))
+        (emms-player-simple-mpv-plm--wait-response response-id)
         (emms-player-simple-mpv-set_property
          "playlist-pos" pos
-         :fn (lambda (_) (emms-player-simple-mpv-playlist-mode-reload))
+         :fn (lambda (pos)
+               (when (emms-player-simple-mpv-plm--maybe-response-p response-id)
+                 (emms-player-simple-mpv-plm-update-playlist-pos pos)))
          :msg nil
          :err-msg (format "set_property playlist-pos %s" pos))))))
 
@@ -252,7 +337,7 @@ Go to the current entry If GOTO-CURRENTP is non-nil."
   "Remove the entry at POINT."
   (interactive)
   (when (eq emms-player-simple-mpv-plm--mpv-socket emms-player-simple-mpv--socket)
-    (let ((pos (emms-player-simple-mpv-plm--pos-at (or point (point)))))
+    (let ((pos (emms-player-simple-mpv-plm--entry-pos-at (or point (point)))))
       (when pos
         (forward-line 0)
         (emms-player-simple-mpv-tq-enqueue
@@ -263,23 +348,19 @@ Go to the current entry If GOTO-CURRENTP is non-nil."
              (message "mpv playlist-remove %s : %s" pos
                       (cdr (assq 'error ans-ls))))))))))
 
-(defvar emms-player-simple-mpv-plm--with-playlist-move-wait-p nil)
-
 (defun emms-player-simple-mpv-plm--with-playlist-move (fn index1 index2)
   "Run FN with INDEX1 and INDEX2.
 Display error message if FN is nil."
-  (emms-player-simple-mpv-tq-enqueue
-   (progn
-     (setq emms-player-simple-mpv-plm--with-playlist-move-wait-p t)
-     (list "playlist-move" index1 index2))
-   (list index1 index2)
-   (lambda (index-ls ans-ls)
-     (setq emms-player-simple-mpv-plm--with-playlist-move-wait-p nil)
-     (if (and fn (emms-player-simple-mpv-tq-success-p ans-ls))
-         (apply fn index-ls)
-       (message "mpv playlist-move %s %s : %s"
-                (cl-first index-ls) (cl-second index-ls)
-                (cdr (assq 'error ans-ls)))))))
+  (unless emms-player-simple-mpv-plm--wait-response-p
+    (emms-player-simple-mpv-plm--wait-response)
+    (emms-player-simple-mpv-tq-enqueue
+     (list "playlist-move" index1 index2) nil
+     (lambda (_ ans-ls)
+       (when (emms-player-simple-mpv-plm--maybe-response-p ans-ls)
+         (if (and fn (emms-player-simple-mpv-tq-success-p ans-ls))
+             (funcall fn index1 index2)
+           (message "mpv playlist-move %s %s : %s"
+                    index1 index2 (cdr (assq 'error ans-ls)))))))))
 
 (defun emms-player-simple-mpv-plm--move-slide (pos1 pos2 &optional up)
   "Slide and insert POS1 entry after POS2 entry if UP is nil.
@@ -290,8 +371,7 @@ and Return point which was at POS1 entry."
   (with-current-buffer (emms-player-simple-mpv-plm--get-buffer)
     (save-excursion
       (save-restriction
-        (goto-char (point-min))
-        (forward-line pos1)
+        (forward-line (- pos1 (emms-player-simple-mpv-plm--entry-pos-at)))
         (let* ((inhibit-read-only t)
                (playlist emms-player-simple-mpv-plm--last-playlist)
                (entry1 (aref playlist pos1))
@@ -313,8 +393,7 @@ and Return point which was at POS1 entry."
           (delete-region (point-min) (point-max))
           (goto-char (point-min))
           (cl-loop for i from pos1 to pos2 do
-                   (emms-player-simple-mpv-plm--insert-entry
-                    (aref playlist i) i))
+                   (emms-player-simple-mpv-plm--insert-entry (aref playlist i) i))
           start)))))
 
 (defun emms-player-simple-mpv-plm--move-up (index1 index2)
@@ -331,9 +410,9 @@ and Return point which was at POS1 entry."
   "Move up the entry at the point N times."
   (interactive "p")
   (when (and (eq emms-player-simple-mpv-plm--mpv-socket emms-player-simple-mpv--socket)
-             (null emms-player-simple-mpv-plm--with-playlist-move-wait-p))
+             (null emms-player-simple-mpv-plm--wait-response-p))
     (if (< n 0) (emms-player-simple-mpv-playlist-mode-move-down (abs n))
-      (let* ((pos (emms-player-simple-mpv-plm--pos-at (point)))
+      (let* ((pos (emms-player-simple-mpv-plm--entry-pos-at (point)))
              (pos2 (max (- pos (if (> n 1) n 1)) 0)))
         (when (and pos (> pos 0))
           (emms-player-simple-mpv-plm--with-playlist-move
@@ -345,9 +424,9 @@ and Return point which was at POS1 entry."
   "Move down the entry at the point N times."
   (interactive "p")
   (when (and (eq emms-player-simple-mpv-plm--mpv-socket emms-player-simple-mpv--socket)
-             (null emms-player-simple-mpv-plm--with-playlist-move-wait-p))
+             (null emms-player-simple-mpv-plm--wait-response-p))
     (if (< n 0) (emms-player-simple-mpv-playlist-mode-move-up (abs n))
-      (let* ((pos (emms-player-simple-mpv-plm--pos-at (point)))
+      (let* ((pos (emms-player-simple-mpv-plm--entry-pos-at (point)))
              (pos2 (min (+ pos (if (> n 1) n 1))
                         (1- (emms-player-simple-mpv-plm--last-length)))))
         (when (and pos (not (eq pos pos2)))
@@ -356,17 +435,21 @@ and Return point which was at POS1 entry."
            pos (1+ pos2)))))))
 
 (defun emms-player-simple-mpv-plm--next (&optional prevp)
-  "Run playlist-next or pplaylist-prev if PREVP is non-nil.
-and Reload."
+  "Run playlist-next and update.
+Run playlist-prev and update if PREVP is non-nil."
   (let ((com (if prevp "playlist-prev" "playlist-next")))
-    (emms-player-simple-mpv-tq-enqueue
-     (list com)
-     com
-     (lambda (com ans-ls)
-       (if (emms-player-simple-mpv-tq-success-p ans-ls)
-           (emms-player-simple-mpv-playlist-mode-reload)
-         (message "mpv %s : %s" com
-                  (cdr (assq 'error ans-ls))))))))
+    (unless emms-player-simple-mpv-plm--wait-response-p
+      (emms-player-simple-mpv-plm--wait-response)
+      (emms-player-simple-mpv-tq-enqueue
+       (list com)
+       com
+       (lambda (com ans-ls)
+         (when (emms-player-simple-mpv-plm--maybe-response-p ans-ls)
+           (if (emms-player-simple-mpv-tq-success-p ans-ls)
+               (emms-player-simple-mpv-plm--update-playlist-pos
+                (+ (if prevp -1 1) (emms-player-simple-mpv-plm--last-cpos)) t)
+             (message "mpv %s : %s" com
+                      (cdr (assq 'error ans-ls))))))))))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-playlist-mode-next ()
@@ -479,7 +562,9 @@ If ACTION is nil,
   (setq-local emms-player-simple-mpv-plm--mpv-socket
               emms-player-simple-mpv--socket)
   (setq-local truncate-lines t)
-  (setq emms-player-simple-mpv-plm--with-playlist-move-wait-p nil))
+  (setq emms-player-simple-mpv-plm--wait-response-p nil)
+  (add-hook 'emms-player-simple-mpv-tq-event-playlist-pos-functions
+            'emms-player-simple-mpv-plm-update-playlist-pos))
 
 (provide 'emms-player-simple-mpv-playlist-mode)
 ;;; emms-player-simple-mpv-playlist-mode.el ends here
