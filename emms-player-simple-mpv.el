@@ -194,11 +194,17 @@ This variable will be used with `make-temp-name'.")
   'emms-player-simple-mpv-tq-event-duration-functions
   "20170930")
 
+(defcustom emms-player-simple-mpv-tq-event-playlist-pos-functions nil
+  "Abnormal hook run with one argument which is playlist-pos."
+  :group 'emms-simple-player-mpv
+  :type 'hook)
+
 (defcustom emms-player-simple-mpv-tq-event-property-change-functions-alist
   (list '("filename" . emms-player-simple-mpv-tq-event-filename-functions)
         '("volume" . emms-player-simple-mpv-tq-event-volume-functions)
         '("speed" . emms-player-simple-mpv-tq-event-speed-functions)
-        '("duration" . emms-player-simple-mpv-tq-event-duration-functions))
+        '("duration" . emms-player-simple-mpv-tq-event-duration-functions)
+        '("playlist-pos" . emms-player-simple-mpv-tq-event-playlist-pos-functions))
   "Alist of property name and abnormal hook.
 Abnormal hook run with one argument for data
 when TQ process receives \"property-change\" from mpv."
