@@ -410,16 +410,17 @@ See `tq-process-buffer'."
 ;;;###autoload
 (defun emms-player-simple-mpv-tq-enqueue (com-ls closure fn)
   "Work like `tq-enqueue' except for using a hash table.
+and return the request_id.
 COM-LS is a list of a command name and params.
 CLOSURE will be used as a first arg for FN.
-FN will take CLOSURE and a parsed json object \(alist) after receiveing a reply."
+FN will take CLOSURE and a parsed json object \(alist) after receiving a reply."
   (when (emms-player-simple-mpv-playing-p)
-    (cl-incf emms-player-simple-mpv--tq-id-counter)
-    (puthash emms-player-simple-mpv--tq-id-counter (cons closure fn)
-             emms-player-simple-mpv--tq-hash)
+    (puthash emms-player-simple-mpv--tq-id-counter
+             (cons closure fn) emms-player-simple-mpv--tq-hash)
     (process-send-string (tq-process emms-player-simple-mpv--tq)
                          (funcall #'emms-player-simple-mpv--tq-make-command
-                                  com-ls emms-player-simple-mpv--tq-id-counter))))
+                                  com-ls emms-player-simple-mpv--tq-id-counter))
+    (1- (cl-incf emms-player-simple-mpv--tq-id-counter))))
 
 (defun emms-player-simple-mpv-tq-success-p (ans)
   "Check command response from ANS."
