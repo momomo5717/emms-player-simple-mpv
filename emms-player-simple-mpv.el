@@ -648,11 +648,52 @@ FN takes track-name as an argument."
                                        params)))))
   params)
 
-(defun emms-player-simple-mpv--socket-wait-file (process fname)
-  "Wait for PROCESS's socket FNAME."
-  (while (and (eq (process-status process) 'run)
-              (not (file-exists-p fname)))
-    (sit-for 0.05)))
+(defvar emms-player-simple-mpv--connect-socket-timer nil)
+
+(defvar emms-player-simple-mpv--connect-socket-timer-interval 0.05)
+
+(defvar emms-player-simple-mpv--connect-socket-timeout 300.0)
+
+(defun emms-player-simple-mpv--connect-socket-cancel-timer ()
+  "Cancel `emms-player-simple-mpv--connect-socket-timer'."
+  (when emms-player-simple-mpv--connect-socket-timer
+    (cancel-timer emms-player-simple-mpv--connect-socket-timer)
+    (setq emms-player-simple-mpv--connect-socket-timer nil)))
+
+(defun emms-player-simple-mpv--set-tq-socket ()
+  "Set `emms-player-simple-mpv--tq' to a new tq."
+  (setq emms-player-simple-mpv--tq (emms-player-simple-mpv--tq-create))
+  (set-process-filter (tq-process emms-player-simple-mpv--tq)
+                      'emms-player-simple-mpv--socket-filter)
+  (when emms-player-simple-mpv-use-volume-change-function-p
+    (emms-player-simple-mpv--set-volume-change-function)))
+
+(defun emms-player-simple-mpv--connect-socket (process)
+  "Try to connect `emms-player-simple-mpv--socket' which PROCESS made."
+  (emms-player-simple-mpv--connect-socket-cancel-timer)
+  (let ((counter 0.0)
+        (timeout emms-player-simple-mpv--connect-socket-timeout)
+        (interval emms-player-simple-mpv--connect-socket-timer-interval)
+        (dir (file-name-directory emms-player-simple-mpv--socket)))
+    (unless (file-exists-p dir)
+      (error "Failed to find the directory: %s" dir))
+    (setq emms-player-simple-mpv--connect-socket-timer
+          (run-at-time
+           interval interval
+           (lambda ()
+             (cl-incf counter interval)
+             (cond
+              ((> counter timeout)
+               (emms-player-simple-mpv--connect-socket-cancel-timer)
+               (message "Timeout: failed to find the socket file: %s"
+                        emms-player-simple-mpv--socket))
+              ((not (and (processp process) (eq (process-status process) 'run)))
+               (emms-player-simple-mpv--connect-socket-cancel-timer))
+              ((file-exists-p emms-player-simple-mpv--socket)
+               (emms-player-simple-mpv--connect-socket-cancel-timer)
+               (condition-case err
+                   (emms-player-simple-mpv--set-tq-socket)
+                 (error (message "%s" (error-message-string err)))))))))))
 
 ;;;###autoload
 (defun emms-player-simple-mpv-start (track player cmdname params)
@@ -676,19 +717,7 @@ FN takes track-name as an argument."
     (emms-player-started player)
     (setq emms-player-paused-p t)
     (run-hooks 'emms-player-paused-hook)
-    (emms-player-simple-mpv--socket-wait-file process
-                                              emms-player-simple-mpv--socket)
-    (condition-case err
-        (setq emms-player-simple-mpv--tq (emms-player-simple-mpv--tq-create))
-      (error (message "%s" (error-message-string err))
-             (when emms-player-simple-mpv-use-start-tq-error-message-p
-               (later-do 'emms-player-simple-mpv--start-tq-error-message
-                         params input-form))))
-    (when (tq-process emms-player-simple-mpv--tq)
-      (set-process-filter (tq-process emms-player-simple-mpv--tq)
-                          'emms-player-simple-mpv--socket-filter)
-      (when emms-player-simple-mpv-use-volume-change-function-p
-        (emms-player-simple-mpv--set-volume-change-function)))))
+    (emms-player-simple-mpv--connect-socket process)))
 
 ;; Functions to control mpv
 
